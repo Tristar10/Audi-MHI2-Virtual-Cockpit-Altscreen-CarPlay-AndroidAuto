@@ -229,8 +229,20 @@ The cockpit is the HMI's main terminal, and its scene graph is built through
 
 **v19 result (parked):** our node is drawn on the cockpit, at each requested
 position, with our text label inside, but squashed to a thin white strip:
-width right, height a few pixels. A vertical scale inherited from the parent
-node is the leading suspect; next test.
+width right, height a few pixels. Every EAL call reported success. Log facts:
+
+- Screen 1440x540; `popupsUnboundFrontLTRNode` and `screensLTRNode` both at 0,0, size 1440x540.
+- Layout class on this car: `LayoutMIB2MMICombiTTSport`.
+- Stock guidance banner (KDK displayable) position from layout constants
+  58/59 (small view) = 991,152 and 60/61 (large view) = 1105,110;
+  constants 118–121 = 59,27,210,153 and 122–125 = 0,0,328,180.
+- `WrappedNode3D.setSize` only stores the size; the car's own `IconRendererHigh`
+  sizes an image by `setScale(targetW / unscaledW, targetH / unscaledH, 1)`.
+
+**v20 (parked test, pending):** four drawing variants (image and text in a group,
+image directly on the layer scaled like stock icons, text only, QuickDraw
+outline), each logging the wrapper and native translation, scale and image size
+of every node up the parent chain.
 
 Plan: a hybrid. The stock banner keeps showing distance, ETA and streets (fed
 without the bargraph); our panel draws the turn arrow, and later lanes, from

@@ -13,6 +13,7 @@ V16=cc4110d51cf639a6502f6dfb5bcaa676bb101a553c365b123b4bd51ad78242b4
 V17=651454c8695f514b0627c7f0818422820ff44245fd3dd4c1483487fa58fd1ec9
 V18=a403e83dc210a4ae580c547bf63c0bf235934483b1e4096efdd5ade427e3003f
 V19=a549814352b72762f1639c0343eeab829f954aa2ff92e078d6fea40fd30fb4e1
+V20=146a39998585e62b59eff8e714c3e3e92271a15fb72530cd3aafddeb9000c44b
 T=$K/altscreen-sha256
 
 say(){ echo "$*"; }
@@ -21,33 +22,33 @@ ro(){ sync; mount -ur /mnt/app 2>/dev/null; }
 which_jar(){
     h=$("$T" "$JAR" 2>/dev/null)
     case "$h" in
-        $V12) echo v12;; $V14) echo v14;; $V15) echo v15;; $V16) echo v16;; $V17) echo v17;; $V18) echo v18;; $V19) echo v19;; "") echo none;; *) echo "unknown ($h)";;
+        $V12) echo v12;; $V14) echo v14;; $V15) echo v15;; $V16) echo v16;; $V17) echo v17;; $V18) echo v18;; $V19) echo v19;; $V20) echo v20;; "") echo none;; *) echo "unknown ($h)";;
     esac
 }
 
 case "${1:-help}" in
 setup)
     # Run from /tmp after copying the kit there. Safe to run again for a kit update.
-    test -f /tmp/tt-zoom-v19.jar || { say 'Copy the kit files to /tmp first.'; exit 1; }
+    test -f /tmp/tt-zoom-v20.jar || { say 'Copy the kit files to /tmp first.'; exit 1; }
     rw
     mkdir -p "$K/logs"
-    for f in altscreen-sha256 tt-zoom-v19.jar stock-replay.txt catalogue.txt komo-test.txt panel-test.txt; do
+    for f in altscreen-sha256 tt-zoom-v20.jar stock-replay.txt catalogue.txt komo-test.txt panel-test.txt; do
         cp "/tmp/$f" "$K/$f" || { say "missing /tmp/$f"; ro; exit 1; }
     done
-    for f in tt-zoom-v12.jar tt-zoom-v14.jar tt-zoom-v15.jar tt-zoom-v16.jar tt-zoom-v17.jar tt-zoom-v18.jar; do
+    for f in tt-zoom-v12.jar tt-zoom-v14.jar tt-zoom-v15.jar tt-zoom-v16.jar tt-zoom-v17.jar tt-zoom-v18.jar tt-zoom-v19.jar; do
         test -f "/tmp/$f" && cp "/tmp/$f" "$K/$f"
     done
     cp /tmp/tt.sh /mnt/app/root/tt.sh
     chmod 755 "$T" /mnt/app/root/tt.sh
     ok=1
-    "$T" $V19 "$K/tt-zoom-v19.jar" || ok=0
+    "$T" $V20 "$K/tt-zoom-v20.jar" || ok=0
     ro
     if test $ok = 1; then say 'Kit installed. From now on just type:  sh tt.sh help'
     else say 'A kit file is damaged - copy the kit again and rerun setup.'; exit 1; fi
     ;;
 use)
     v=${2:-}
-    case "$v" in v12) h=$V12;; v14) h=$V14;; v15) h=$V15;; v16) h=$V16;; v17) h=$V17;; v18) h=$V18;; v19) h=$V19;; *) say 'Usage: sh tt.sh use v19   (or v18 / v17 / v16 / v15 / v14 / v12)'; exit 2;; esac
+    case "$v" in v12) h=$V12;; v14) h=$V14;; v15) h=$V15;; v16) h=$V16;; v17) h=$V17;; v18) h=$V18;; v19) h=$V19;; v20) h=$V20;; *) say 'Usage: sh tt.sh use v20   (or v19 ... v12)'; exit 2;; esac
     test -f "$K/tt-zoom-$v.jar" || { say "$v is not in the kit on the car."; exit 1; }
     "$T" $h "$K/tt-zoom-$v.jar" || { say "Stored $v jar is damaged."; exit 1; }
     rw
@@ -83,7 +84,7 @@ mode)
     esac
     ;;
 report)
-    say "== jar: $(which_jar)    (v19 is the current one)"
+    say "== jar: $(which_jar)    (v20 is the current one)"
     say '== switches:'
     ls /tmp/tt-rgi-* 2>/dev/null || say '(none)'
     say '== iPhone and cockpit (last 8):'
@@ -108,7 +109,7 @@ save)
     ;;
 *)
     say 'sh tt.sh report              what is installed and what it is doing (paste this)'
-    say 'sh tt.sh use v19             switch version (v19 ... v12), then restart the MMI'
+    say 'sh tt.sh use v20             switch version (v20 ... v12), then restart the MMI'
     say 'sh tt.sh play panel|komo|stock  parked tests'
     say 'sh tt.sh play arrows | stop  arrow catalogue / stop playback'
     say 'sh tt.sh mode default|nokdk|noactive|nopad|off|on'

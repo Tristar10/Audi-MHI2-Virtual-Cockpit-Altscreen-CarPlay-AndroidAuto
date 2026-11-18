@@ -30,6 +30,12 @@ import de.esolutions.hmi.widgets.audi.base.eal.TextureDescription;
  *   panel show PARENT X Y W H COLOR [TEXT]   draw a test box: PARENT front|screens|root,
  *                                       COLOR rrggbb, TEXT optional (white, HMI font)
  *   panel hide                          remove our nodes
+ *   panel try MODE X Y W H COLOR [TEXT] v20 variants (front layer), each logs native transforms:
+ *       group  image + text inside a group node (v19 way, solid colour, no border)
+ *       direct image straight under the layer, positioned and scaled like the stock IconRendererHigh
+ *       text   text node only, straight under the layer
+ *       lines  QuickDraw outline rectangle
+ * v19 car result: nodes drawn at the right place but squashed to a thin strip.
  * Results go to /tmp/tt-rgd.log ("panel ..."). Java 1.4 library only.
  */
 public final class TtPanel {
@@ -193,7 +199,132 @@ public final class TtPanel {
                 .append(" parent ").append(describe(parent));
             return b.toString();
         }
+        if (op.equals("try") && w.length >= 7) {
+            return tryMode(m, w);
+        }
         return new StringBuffer("unknown: ").append(arg).toString();
+    }
+
+    private static String tryMode(EALManager m, String[] w) {
+        clear(m);
+        IWrappedNode3D parent = m.getPartialPopupsFrontNode();
+        String mode = w[1];
+        int x = num(w[2]);
+        int y = num(w[3]);
+        int bw = Math.max(8, Math.min(1024, num(w[4])));
+        int bh = Math.max(8, Math.min(1024, num(w[5])));
+        int rgb = hex(w[6]);
+        StringBuffer text = new StringBuffer();
+        for (int i = 7; i < w.length; i++) {
+            if (i > 7) {
+                text.append(' ');
+            }
+            text.append(w[i]);
+        }
+        StringBuffer b = new StringBuffer(mode);
+        if (mode.equals("group")) {
+            root = m.createNode3D(parent, "ttPanel", (float) bw, (float) bh);
+            root.setPosition((float) x, (float) y, 0f);
+            box = image(m, root, bw, bh, rgb);
+            if (box != null) {
+                box.setPosition(0f, 0f, 0f);
+                box.setScale((float) bw / box.getUnscaledWidth(), (float) bh / box.getUnscaledHeight(), 1f);
+            }
+            label = text(m, root, text.toString(), 40);
+            if (label != null) {
+                label.setPosition(10f, 10f, 0f);
+            }
+        } else if (mode.equals("direct")) {
+            box = image(m, parent, bw, bh, rgb);
+            if (box != null) {
+                box.setScale((float) bw / box.getUnscaledWidth(), (float) bh / box.getUnscaledHeight(), 1f);
+                box.setPosition((float) x, (float) y, 0f);
+            }
+        } else if (mode.equals("text")) {
+            label = text(m, parent, text.toString(), 40);
+            if (label != null) {
+                label.setColor(0xFF000000 | rgb);
+                label.setPosition((float) x, (float) y, 0f);
+            }
+        } else if (mode.equals("lines")) {
+            de.esolutions.hmi.widgets.audi.base.eal.IWrappedNode3DQuickDraw q =
+                m.createQuickDrawNode3D(parent, "ttPanelLines", bw, bh, 2);
+            if (q == null) {
+                b.append(" quickdraw null");
+            } else {
+                q.setLineWidth(6f);
+                q.setLineColor(0xFF000000 | rgb);
+                q.add(0f, 0f);
+                q.add((float) bw, 0f);
+                q.add((float) bw, (float) bh);
+                q.add(0f, (float) bh);
+                q.add(0f, 0f);
+                q.setPosition((float) x, (float) y, 0f);
+                root = q;
+            }
+        }
+        m.fireRenderEvent();
+        b.append(" | root ").append(dump(root)).append(" | box ").append(dump(box)).append(" | text ").append(dump(label));
+        b.append(" | parent ").append(dump(parent));
+        IWrappedNode3D p = parent == null ? null : parent.getParent();
+        for (int i = 0; i < 4 && p != null; i++) {
+            b.append(" | up").append(i + 1).append(' ').append(dump(p));
+            p = p.getParent();
+        }
+        return b.toString();
+    }
+
+    private static IWrappedNode3DImage image(EALManager m, IWrappedNode3D parent, int bw, int bh, int rgb) {
+        ByteBuffer buf = ByteBuffer.allocateDirect(bw * bh * 4);
+        byte r = (byte) (rgb >> 16);
+        byte g = (byte) (rgb >> 8);
+        byte bl = (byte) rgb;
+        for (int i = 0; i < bw * bh; i++) {
+            buf.put(r).put(g).put(bl).put((byte) -1);
+        }
+        buf.rewind();
+        TextureDescription d = m.createTextureDescription(buf, bw, bh, 6, null, "ttPanelTex");
+        return m.createImage3D(parent, "ttPanelBox", d, 0, true, "ttPanel");
+    }
+
+    private static IWrappedNode3DText text(EALManager m, IWrappedNode3D parent, String t, int size) {
+        if (t.length() == 0) {
+            return null;
+        }
+        Object font = HMITerminalImpl.fontLoader == null ? null : HMITerminalImpl.fontLoader.getFont(size, 0);
+        if (!(font instanceof de.esolutions.hmi.widgets.audi.base.eal.IWrappedFont)) {
+            return null;
+        }
+        IWrappedNode3DText n = m.createText3D(parent, "ttPanelText", t,
+            (de.esolutions.hmi.widgets.audi.base.eal.IWrappedFont) font);
+        if (n != null) {
+            n.setColor(0xFFFFFFFF);
+        }
+        return n;
+    }
+
+    /** Wrapper and native transform of a node, for the log. */
+    private static String dump(IWrappedNode3D n) {
+        if (n == null) {
+            return "-";
+        }
+        StringBuffer b = new StringBuffer();
+        try {
+            b.append("w[").append(n.getX()).append(',').append(n.getY()).append(' ').append(n.getWidth()).append('x')
+                .append(n.getHeight()).append(" u ").append(n.getUnscaledWidth()).append('x').append(n.getUnscaledHeight())
+                .append(" o ").append(n.getOriginX()).append(',').append(n.getOriginY()).append(']');
+            de.esolutions.graphics.eal.api.INode3D e = n.getNode();
+            b.append(" n[").append(e.getName()).append(" t ").append(e.getTranslationX()).append(',')
+                .append(e.getTranslationY()).append(',').append(e.getTranslationZ()).append(" s ").append(e.getScaleX())
+                .append(',').append(e.getScaleY()).append(',').append(e.getScaleZ()).append(']');
+            if (n instanceof IWrappedNode3DImage) {
+                de.esolutions.graphics.eal.api.INode3DImage im = ((IWrappedNode3DImage) n).getImageNode();
+                b.append(" img ").append(im.getWidth()).append('x').append(im.getHeight());
+            }
+        } catch (Throwable t) {
+            b.append(" dump error ").append(String.valueOf(t));
+        }
+        return b.toString();
     }
 
     private static void clear(EALManager m) {
