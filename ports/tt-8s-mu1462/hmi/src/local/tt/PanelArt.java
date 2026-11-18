@@ -92,6 +92,29 @@ public final class PanelArt {
         }
     }
 
+    /**
+     * Compact panel for the large view (v22): maneuver picture on the left, text area on the
+     * right (drawn by HMI text nodes), lane row under the text, thin progress bar on the right edge.
+     * Returns nothing; TtPanel places the texts at TEXT_X.
+     */
+    public void compact(int main, int dir, int[] arms, int bar, int[][] laneAngles, int[] laneStatus) {
+        java.util.Arrays.fill(px, 0);
+        roundRect(0, 0, w, h, 16, BG);
+        int s = h - 16;
+        maneuver(main, dir, arms, 6, 8, s);
+        if (laneAngles != null && laneAngles.length > 0) {
+            lanes(laneAngles, laneStatus, s + 10, h - 50, w - s - 32, 44);
+        }
+        if (bar >= 0) {
+            int bh = h - 24;
+            int filled = (int) ((long) bh * Math.min(255, bar) / 255);
+            roundRect(w - 14, 12, 7, bh, 3, BAR_OFF);
+            if (filled > 0) {
+                roundRect(w - 14, 12 + bh - filled, 7, filled, 3, BAR_ON);
+            }
+        }
+    }
+
     /** Maneuver picture inside the square (x, y, s). */
     public void maneuver(int main, int dir, int[] arms, int x, int y, int s) {
         float cx = x + s / 2f;

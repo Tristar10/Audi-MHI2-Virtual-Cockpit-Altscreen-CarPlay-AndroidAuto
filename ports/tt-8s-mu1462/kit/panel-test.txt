@@ -1,6 +1,8 @@
 # Turn panel demo (tt-zoom v21): our own drawing at the stock banner spot, parked.
 # Each maneuver counts down with the progress bar; lanes appear on the approach.
 say turn panel demo start
+# Declare a route so the small view shows the stock banner spot (our panel is drawn on it).
+active 1
 panel turn 11,255 3200 -1 - Grand Pkwy
 wait 4000
 say Alpha St (left, lane 1)
@@ -155,7 +157,7 @@ panel turn 3,0 18 30 - Costco (arrive)
 wait 1200
 panel turn 3,0 0 0 - Costco (arrive)
 wait 1200
-say large/small: switch the view now to see the panel follow (moves with the stock banner spot)
+say large/small: switch the view now; the panel changes layout (compact above the speedometer / tall in the banner spot)
 panel turn 13,64,-1,0,-64 120 117 -90:2/0:0/0:0/90:0 Alpha St
 wait 10000
 panel off

@@ -51,6 +51,8 @@ public final class TtRgi {
     private static final Object LOCK = new Object();
     /** v21: the stock KOMO banner is off by default (our own panel draws instead); this marker brings it back. */
     private static final File KDK_ALLOW = new File("/tmp/tt-rgi-kdk");
+    /** v22: in the small view the banner spot otherwise shows the car's own page over our panel. */
+    private static final File KDK_NOSMALL = new File("/tmp/tt-rgi-nokdk-small");
     private static CombiBAPListener listener;
     private static volatile boolean carplayRg;
     /** Whether a CarPlay route is reported as "route active" right now. */
@@ -82,7 +84,7 @@ public final class TtRgi {
      * handler. Our own calls pass on only the real stock route state.
      */
     public static boolean kdkRg(boolean on) {
-        if (!on || caller != Thread.currentThread() || KDK_ALLOW.exists()) {
+        if (!on || caller != Thread.currentThread() || kdkWanted()) {
             return on;
         }
         ClusterService cs = service();
@@ -100,7 +102,7 @@ public final class TtRgi {
 
     /** Patched KOMOService.updateVisibility: the nav engine's value, or true during a CarPlay route. */
     public static boolean komoVisible(boolean v) {
-        return v || (carplayRg && declared && KDK_ALLOW.exists());
+        return v || (carplayRg && declared && kdkWanted());
     }
 
     /** Shows (or hides) the KOMO guidance view for a CarPlay route. Returns a log note. */
@@ -109,8 +111,8 @@ public final class TtRgi {
         if (k == null) {
             return " (no KOMO service)";
         }
-        if (on && !KDK_ALLOW.exists()) {
-            return "";
+        if (on && !kdkWanted()) {
+            on = false;
         }
         try {
             if (on) {
@@ -121,6 +123,34 @@ public final class TtRgi {
             return on ? " (komo shown)" : " (komo released)";
         } catch (Throwable t) {
             return new StringBuffer(" (komo error ").append(String.valueOf(t)).append(')').toString();
+        }
+    }
+
+    /** Show the stock banner for a CarPlay route: always with /tmp/tt-rgi-kdk, else in the small view. */
+    private static boolean kdkWanted() {
+        return KDK_ALLOW.exists() || (local.tt.ZoomGate.small() && !KDK_NOSMALL.exists());
+    }
+
+    /** ZoomGate: the cockpit view changed; the next update re-declares the route (banner on/off). */
+    public static void viewChanged() {
+        if (!carplayRg || !declared) {
+            return;
+        }
+        synchronized (LOCK) {
+            ClusterService cs = service();
+            if (cs == null) {
+                return;
+            }
+            caller = Thread.currentThread();
+            try {
+                // Re-declare: kdkRg/komoVisible now answer for the new view.
+                cs.updateRgActive(true);
+                showKomo(cs, true);
+            } catch (Throwable ignored) {
+                dirty = true;
+            } finally {
+                caller = null;
+            }
         }
     }
 
@@ -450,6 +480,10 @@ public final class TtRgi {
                         declared = false;
                     }
                     b.append(" resend");
+                    if (declared) {
+                        cs.updateRgActive(true);
+                        b.append(showKomo(cs, true));
+                    }
                 }
                 if (declare != declared) {
                     declared = declare;

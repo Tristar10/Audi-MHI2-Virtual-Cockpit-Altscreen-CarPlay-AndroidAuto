@@ -46,6 +46,12 @@ import de.esolutions.hmi.widgets.audi.base.eal.TextureDescription;
  *       ANGLE[,ANGLE...]:STATUS (degrees, positive right; status 0/1/2), e.g. -90:2/0:0/0:0/90:0
  *   panel at X Y | panel at auto | panel off
  * live(): the iPhone feed (RgdBus) calls this on every change; /tmp/tt-panel-off disables it.
+ *
+ * v22 (car photos): the 300x340 panel was too big in the large view (half behind the speedometer,
+ * cut at the right edge) and invisible in the small view, where the car's own page covers the
+ * banner spot. Large view: compact 260x140 panel above the speedometer. Small view: the stock banner
+ * is switched on (TtRgi) and the tall panel drawn at its spot. Position and scale per view are read
+ * from /tmp/tt-panel-pos (lines: large X Y SCALE / small X Y SCALE), so they can be tuned live.
  * Results go to /tmp/tt-rgd.log ("panel ..."). Java 1.4 library only.
  */
 public final class TtPanel {
@@ -217,7 +223,7 @@ public final class TtPanel {
                 posY = num(w[2]);
             }
             if (turnRoot != null) {
-                place();
+                place(ZoomGate.small());
             }
             m.fireRenderEvent();
             return "moved";
@@ -234,6 +240,7 @@ public final class TtPanel {
         }
         if (op.equals("off")) {
             clearTurn(m);
+            lastTurn = null;
             m.fireRenderEvent();
             return "turn panel off";
         }
@@ -365,10 +372,15 @@ public final class TtPanel {
         return b.toString();
     }
 
-    // ---- v21 turn panel ------------------------------------------------------------
-    private static final int PW = 300;
-    private static final int PH = 340;
+    // ---- turn panel (v21 picture, v22 layouts) --------------------------------------
+    /** Tall panel for the small view (stock banner spot). */
+    private static final int TALL_W = 300;
+    private static final int TALL_H = 340;
+    /** Compact panel for the large view (above the speedometer). */
+    private static final int WIDE_W = 260;
+    private static final int WIDE_H = 140;
     private static final java.io.File LIVE_OFF = new java.io.File("/tmp/tt-panel-off");
+    private static final java.io.File POS = new java.io.File("/tmp/tt-panel-pos");
     private static int posX = Integer.MIN_VALUE;
     private static int posY;
     private static IWrappedNode3D turnRoot;
@@ -377,7 +389,9 @@ public final class TtPanel {
     private static IWrappedNode3DText streetText;
     private static String artKey;
     private static String liveKey;
+    private static String lastTurn;
     private static boolean liveShown;
+    private static boolean shownSmall;
 
     /**
      * The iPhone feed: called by RgdBus after every update (any thread). Queues a redraw only
@@ -414,6 +428,14 @@ public final class TtPanel {
         }
     }
 
+    /** ZoomGate: large/small view changed; rebuild the panel in the other layout. */
+    public static void viewChanged() {
+        String t = lastTurn;
+        if (t != null) {
+            post(t, false);
+        }
+    }
+
     private static void post(String arg, boolean log) {
         EALManager m = manager();
         if (m == null) {
@@ -431,6 +453,14 @@ public final class TtPanel {
         if (icon.length < 2) {
             return "turn needs MAIN,DIR";
         }
+        lastTurn = rebuildArg(icon, metres, bar, lanes, street);
+        boolean small = ZoomGate.small();
+        if (turnRoot != null && small != shownSmall) {
+            clearTurn(m);
+        }
+        shownSmall = small;
+        int pw = small ? TALL_W : WIDE_W;
+        int ph = small ? TALL_H : WIDE_H;
         int main = icon[0];
         int dir = icon[1] & 0xff;
         int[] arms = null;
@@ -452,31 +482,34 @@ public final class TtPanel {
                 laneStatus[i] = c < 0 ? 0 : num(ls[i].substring(c + 1));
             }
         }
-        StringBuffer b = new StringBuffer();
+        StringBuffer b = new StringBuffer(small ? "small " : "large ");
         if (turnRoot == null) {
-            turnRoot = m.createNode3D(m.getPartialPopupsFrontNode(), "ttTurnPanel", (float) PW, (float) PH);
+            turnRoot = m.createNode3D(m.getPartialPopupsFrontNode(), "ttTurnPanel", (float) pw, (float) ph);
             if (turnRoot == null) {
                 return "createNode3D null";
             }
         }
-        place();
-        String k = new StringBuffer().append(main).append(',').append(dir).append(',').append(bar).append(',')
-            .append(icon.length).append(',').append(arms == null ? 0 : arms.length).append(',')
-            .append(lanes == null ? "-" : lanes).append(keyOf(arms)).toString();
+        place(small);
+        String k = new StringBuffer().append(small).append(',').append(main).append(',').append(dir).append(',')
+            .append(bar).append(',').append(lanes == null ? "-" : lanes).append(keyOf(arms)).toString();
         if (!k.equals(artKey) || turnImage == null) {
             long t0 = System.currentTimeMillis();
-            PanelArt art = new PanelArt(PW, PH);
-            art.panel(main, dir, arms, bar, laneAngles, laneStatus);
+            PanelArt art = new PanelArt(pw, ph);
+            if (small) {
+                art.panel(main, dir, arms, bar, laneAngles, laneStatus);
+            } else {
+                art.compact(main, dir, arms, bar, laneAngles, laneStatus);
+            }
             byte[] rgba = art.rgba();
             ByteBuffer buf = ByteBuffer.allocateDirect(rgba.length);
             buf.put(rgba);
             buf.rewind();
-            TextureDescription d = m.createTextureDescription(buf, 6, PW, PH, null, new Object());
+            TextureDescription d = m.createTextureDescription(buf, 6, pw, ph, null, new Object());
             IWrappedNode3DImage img = m.createImage3D(turnRoot, "ttTurnArt", d, 0, true, "ttPanel");
             if (img == null) {
                 return "image null";
             }
-            img.setScale((float) PW / img.getUnscaledWidth(), (float) PH / img.getUnscaledHeight(), 1f);
+            img.setScale((float) pw / img.getUnscaledWidth(), (float) ph / img.getUnscaledHeight(), 1f);
             img.setPosition(0f, 0f, 0f);
             if (turnImage != null) {
                 try {
@@ -497,12 +530,21 @@ public final class TtPanel {
                 turnRoot.add(streetText);
             }
             if (verbose) {
-                b.append("art ").append(System.currentTimeMillis() - t0).append(" ms img ")
-                    .append((int) img.getUnscaledWidth()).append('x').append((int) img.getUnscaledHeight()).append(' ');
+                b.append("art ").append(System.currentTimeMillis() - t0).append(" ms ");
             }
         }
-        distText = setText(m, distText, "ttTurnDist", distance(metres), 2, 44, 40f, (float) (PH - 100));
-        streetText = setText(m, streetText, "ttTurnStreet", street, 1, 26, 40f, (float) (PH - 48));
+        boolean hasLanes = laneAngles != null;
+        if (small) {
+            distText = setText(m, distText, "ttTurnDist", distance(metres), 2, 44, 40f, (float) (ph - 100), pw - 50);
+            streetText = setText(m, streetText, "ttTurnStreet", street, 1, 26, 40f, (float) (ph - 48), pw - 50);
+        } else {
+            int tx = ph - 16 + 12;
+            int tw = pw - tx - 20;
+            distText = setText(m, distText, "ttTurnDist", distance(metres), 2, 36, (float) tx,
+                hasLanes ? 8f : 20f, tw);
+            streetText = setText(m, streetText, "ttTurnStreet", street, 1, 20, (float) tx,
+                hasLanes ? 52f : 72f, tw);
+        }
         turnRoot.setVisible(true);
         m.fireRenderEvent();
         if (verbose) {
@@ -510,6 +552,19 @@ public final class TtPanel {
                 .append(" dist ").append(dump(distText)).append(" street ").append(dump(streetText));
         }
         return b.toString();
+    }
+
+    private static String rebuildArg(int[] icon, int metres, int bar, String lanes, String street) {
+        StringBuffer a = new StringBuffer("turn ");
+        for (int i = 0; i < icon.length; i++) {
+            if (i > 0) {
+                a.append(',');
+            }
+            a.append(icon[i]);
+        }
+        return a.append(' ').append(metres).append(' ').append(bar).append(' ')
+            .append(lanes == null || lanes.length() == 0 ? "-" : lanes).append(' ')
+            .append(street == null ? "" : street).toString();
     }
 
     private static String keyOf(int[] a) {
@@ -521,13 +576,13 @@ public final class TtPanel {
     }
 
     private static IWrappedNode3DText setText(EALManager m, IWrappedNode3DText n, String name, String t,
-                                              int style, int size, float x, float y) {
+                                              int style, int size, float x, float y, int maxWidth) {
         Object font = HMITerminalImpl.fontLoader == null ? null : HMITerminalImpl.fontLoader.getFont(style, size);
         if (!(font instanceof de.esolutions.hmi.widgets.audi.base.eal.IWrappedFont)) {
             return n;
         }
         de.esolutions.hmi.widgets.audi.base.eal.IWrappedFont f = (de.esolutions.hmi.widgets.audi.base.eal.IWrappedFont) font;
-        String text = t == null || t.length() == 0 ? " " : t;
+        String text = fit(m, t == null || t.length() == 0 ? " " : t, f, maxWidth);
         if (n == null) {
             n = m.createText3D(turnRoot, name, text, f);
             if (n == null) {
@@ -541,15 +596,84 @@ public final class TtPanel {
         return n;
     }
 
-    private static void place() {
-        int x = posX;
-        int y = posY;
-        if (x == Integer.MIN_VALUE) {
-            boolean small = ZoomGate.small();
-            x = small ? 991 : 1105;
-            y = small ? 152 : 110;
+    /** Shortens t with "..." until it fits maxWidth pixels in font f. */
+    private static String fit(EALManager m, String t, de.esolutions.hmi.widgets.audi.base.eal.IWrappedFont f,
+                              int maxWidth) {
+        try {
+            if (maxWidth <= 0 || m.getTextWidth(t, f) <= maxWidth) {
+                return t;
+            }
+            int n = t.length();
+            while (n > 1) {
+                n--;
+                String c = new StringBuffer(t.substring(0, n)).append("...").toString();
+                if (m.getTextWidth(c, f) <= maxWidth) {
+                    return c;
+                }
+            }
+        } catch (Throwable ignored) {
         }
+        return t;
+    }
+
+    /**
+     * Position and scale: "panel at" overrides; else /tmp/tt-panel-pos ("large X Y SCALE" /
+     * "small X Y SCALE"); else defaults: small view at the stock banner spot 991,152, large view
+     * 1150,96 (above the speedometer).
+     */
+    private static void place(boolean small) {
+        int x = small ? 991 : 1150;
+        int y = small ? 152 : 96;
+        float scale = 1f;
+        String[] v = posLine(small ? "small" : "large");
+        if (v != null) {
+            x = num(v[1]);
+            y = num(v[2]);
+            if (v.length > 3) {
+                try {
+                    scale = Float.parseFloat(v[3]);
+                } catch (Throwable ignored) {
+                    scale = 1f;
+                }
+            }
+        }
+        if (posX != Integer.MIN_VALUE) {
+            x = posX;
+            y = posY;
+        }
+        if (scale < 0.3f || scale > 2f) {
+            scale = 1f;
+        }
+        turnRoot.setScale(scale, scale, 1f);
         turnRoot.setPosition((float) x, (float) y, 0f);
+    }
+
+    private static String[] posLine(String which) {
+        if (!POS.exists()) {
+            return null;
+        }
+        try {
+            java.io.FileInputStream in = new java.io.FileInputStream(POS.getPath());
+            byte[] buf = new byte[512];
+            int n;
+            try {
+                n = in.read(buf);
+            } finally {
+                in.close();
+            }
+            if (n <= 0) {
+                return null;
+            }
+            String[] lines = split(new String(buf, 0, n), '\n');
+            for (int i = 0; i < lines.length; i++) {
+                String[] w = words(lines[i].trim());
+                if (w.length >= 3 && w[0].equals(which)) {
+                    return w;
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        return null;
     }
 
     /** US units: feet below 1000 ft (50 ft steps), then miles. */

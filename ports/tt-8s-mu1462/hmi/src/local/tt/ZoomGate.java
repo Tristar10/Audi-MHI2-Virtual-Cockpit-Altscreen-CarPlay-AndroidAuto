@@ -118,6 +118,11 @@ public final class ZoomGate {
             smallState = v;
         }
         apply("stage small=", v);
+        try {
+            TtPanel.viewChanged();
+            de.audi.tghu.navi.app.cluster.TtRgi.viewChanged();
+        } catch (Throwable ignored) {
+        }
     }
 
     /**

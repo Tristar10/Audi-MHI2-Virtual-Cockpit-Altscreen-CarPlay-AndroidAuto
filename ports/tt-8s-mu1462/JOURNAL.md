@@ -261,8 +261,24 @@ asked for size 0.
 - The stock KOMO banner is now off by default, so the CarPlay map stays on the
   map tab (`sh tt.sh mode kdk` brings it back for comparison).
 
+**v21 result (car photos, parked demo):** the panel draws, arrows and text
+included. In the large view the 300x340 panel was too big: its lower half (distance,
+street) was behind the speedometer, which is drawn above our layer, and it ran
+off the right edge. In the small view it did not show at all: the car's own page
+(Consumption) covers that spot unless the stock guidance banner is active.
+
+**v22 (parked test, pending):**
+- Large view: compact 260x140 panel at 1150,96, above the speedometer (picture
+  left; distance, street and lanes right; thin bar at the edge). Street names are
+  shortened with "..." to fit (`EALManager.getTextWidth`).
+- Small view: the stock banner is switched on for a CarPlay route (`TtRgi.kdkWanted`)
+  and the tall panel drawn at its spot. The view switch re-declares the route at
+  once (`ZoomGate.stage` → `TtRgi.viewChanged` / `TtPanel.viewChanged`).
+- `sh tt.sh panel large|small X Y [SCALE]` writes `/tmp/tt-panel-pos`; position
+  and scale apply at the next redraw, with no rebuild or restart.
+
 Offline previews of the panel: [docs/panel-preview.png](docs/panel-preview.png),
-[docs/panel-preview-lanes.png](docs/panel-preview-lanes.png) (text there is
+[docs/panel-preview-lanes.png](docs/panel-preview-lanes.png), [docs/panel-preview-compact.png](docs/panel-preview-compact.png) (text there is
 rendered by the PC; the car uses its own fonts).
 
 Plan: a hybrid. The stock banner keeps showing distance, ETA and streets (fed
