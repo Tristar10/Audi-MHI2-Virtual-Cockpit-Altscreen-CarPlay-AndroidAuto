@@ -136,6 +136,64 @@ public final class PanelArt {
         }
     }
 
+    // ---- v27: one panel inside the stock banner window ---------------------------------
+    /** Opaque fill inside the stock banner frame (the frame itself is the HMI's). */
+    public static final int KDK_BG = 0xFF0C0F12;
+    /** Right column of the kdk layout (texts and lanes): x from KDK_COL to w - 6. */
+    public static final int KDK_COL = 122;
+    /** Text column when lanes are shown (the maneuver square is smaller then). */
+    public static final int KDK_COL_LANES = 104;
+
+    /**
+     * v27 (v26 photos): the stock banner frame is drawn above our layer and shows our panel only
+     * through its window, so everything lives in one small picture the size of that window:
+     * bar on the left edge, maneuver square, texts as HMI nodes (distance under the square, arrival
+     * time and exit/street in the right column); with lanes a smaller square and the lanes across the bottom.
+     */
+    public void kdk(int main, int dir, int[] arms, int bar, int[][] laneAngles, int[] laneStatus) {
+        java.util.Arrays.fill(px, KDK_BG);
+        if (laneAngles != null && laneAngles.length > 0) {
+            // With lanes: smaller square, texts right of it (KDK_COL_LANES), lanes across the bottom.
+            maneuver(main, dir, arms, 20, 4, KDK_COL_LANES - 26);
+            lanes(laneAngles, laneStatus, 20, h - 60, w - 26, 56);
+        } else {
+            maneuver(main, dir, arms, 20, 4, h - 52);
+        }
+        if (bar >= 0) {
+            int bh = h - 16;
+            int filled = (int) ((long) bh * Math.min(255, bar) / 255);
+            roundRect(7, 8, 7, bh, 3, BAR_OFF);
+            if (filled > 0) {
+                roundRect(7, 8 + bh - filled, 7, filled, 3, BAR_ON);
+            }
+        }
+    }
+
+    /**
+     * Calibration grid whose top-left pixel sits at screen (ox, oy): lines on every absolute
+     * multiple of 10 px (faint), 50 px (yellow) and 100 px (red), transparent elsewhere.
+     */
+    public void grid(int ox, int oy) {
+        java.util.Arrays.fill(px, 0);
+        for (int y = 0; y < h; y++) {
+            int ay = oy + y;
+            for (int x = 0; x < w; x++) {
+                int ax = ox + x;
+                int c = 0;
+                if (ax % 100 == 0 || ax % 100 == 1 || ay % 100 == 0 || ay % 100 == 1) {
+                    c = 0xFFFF3030;
+                } else if (ax % 50 == 0 || ay % 50 == 0) {
+                    c = 0xE0FFE000;
+                } else if (ax % 10 == 0 || ay % 10 == 0) {
+                    c = 0x70FFFFFF;
+                }
+                if (c != 0) {
+                    px[y * w + x] = c;
+                }
+            }
+        }
+    }
+
     /** Large view, right banner: destination flag on the left (texts are HMI nodes). */
     public void destination() {
         java.util.Arrays.fill(px, 0);

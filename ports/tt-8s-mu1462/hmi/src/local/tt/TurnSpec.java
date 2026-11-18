@@ -17,6 +17,10 @@ final class TurnSpec {
     static final int BANNER = 0;
     static final int FULL = 1;
     static final int FLAP = 2;
+    /** v27: one panel inside the stock banner window, every view. */
+    static final int KDK = 3;
+    static final int KDK_W = 210;
+    static final int KDK_H = 150;
     static final int LEFT_W = 270;
     static final int LEFT_H = 118;
     static final int LEFT_H_LANES = 168;
@@ -95,10 +99,16 @@ final class TurnSpec {
     }
 
     int width(int mode) {
+        if (mode == KDK) {
+            return KDK_W;
+        }
         return mode == BANNER ? LEFT_W : FULL_W;
     }
 
     int height(int mode) {
+        if (mode == KDK) {
+            return KDK_H;
+        }
         return mode == BANNER ? (hasLanes() ? LEFT_H_LANES : LEFT_H) : FULL_H;
     }
 
@@ -115,7 +125,9 @@ final class TurnSpec {
 
     PanelArt render(int mode) {
         PanelArt art = new PanelArt(width(mode), height(mode));
-        if (mode == BANNER) {
+        if (mode == KDK) {
+            art.kdk(main, dir, arms, bar, laneAngles, laneStatus);
+        } else if (mode == BANNER) {
             art.banner(main, dir, arms, bar, laneAngles, laneStatus);
         } else {
             art.full(main, dir, arms, bar, laneAngles, laneStatus);

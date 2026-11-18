@@ -53,6 +53,8 @@ public final class TtRgi {
     private static final File KDK_ALLOW = new File("/tmp/tt-rgi-kdk");
     /** v22: in the small view the banner spot otherwise shows the car's own page over our panel. */
     private static final File KDK_NOSMALL = new File("/tmp/tt-rgi-nokdk-small");
+    /** v27: the stock banner frame is on in every view for a CarPlay route; this marker turns it off. */
+    private static final File KDK_OFF = new File("/tmp/tt-rgi-nokdk");
     private static CombiBAPListener listener;
     private static volatile boolean carplayRg;
     /** Whether a CarPlay route is reported as "route active" right now. */
@@ -84,6 +86,12 @@ public final class TtRgi {
      * handler. Our own calls pass on only the real stock route state.
      */
     public static boolean kdkRg(boolean on) {
+        if (on) {
+            try {
+                local.tt.TtPanel.kdkShowing();
+            } catch (Throwable ignored) {
+            }
+        }
         if (!on || caller != Thread.currentThread() || kdkWanted()) {
             return on;
         }
@@ -126,8 +134,15 @@ public final class TtRgi {
         }
     }
 
-    /** Show the stock banner for a CarPlay route: always with /tmp/tt-rgi-kdk, else in the small view. */
+    /**
+     * Show the stock banner for a CarPlay route. v27 (user, v26 photos): in every view, map tab
+     * included; our panel draws inside its frame. /tmp/tt-rgi-nokdk turns it off (v21-v26
+     * behaviour: only with /tmp/tt-rgi-kdk, or in the small view unless /tmp/tt-rgi-nokdk-small).
+     */
     private static boolean kdkWanted() {
+        if (!KDK_OFF.exists()) {
+            return true;
+        }
         return KDK_ALLOW.exists() || (local.tt.ZoomGate.small() && !KDK_NOSMALL.exists());
     }
 

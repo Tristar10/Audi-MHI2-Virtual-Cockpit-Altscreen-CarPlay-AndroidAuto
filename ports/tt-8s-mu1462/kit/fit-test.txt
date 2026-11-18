@@ -1,0 +1,70 @@
+# Banner-window fit test (tt-zoom v27), parked. Each step says which view to look at.
+say v27 fit test start
+active 1
+panel parent top
+panel layout kdk
+panel kdkbg show
+panel kdk alpha 0
+panel info
+panel grid on
+panel kdk info
+say STEP A (30 s) SMALL VIEW: calibration grid over the banner - one photo
+wait 30000
+panel kdk info
+say STEP B (30 s) LARGE VIEW, CAR TAB: calibration grid - one photo
+wait 30000
+panel kdk info
+say STEP C (30 s) LARGE VIEW, MAP TAB: calibration grid - one photo
+wait 30000
+panel kdk info
+panel grid off
+panel kdk alpha auto
+say STEP D (36 s) any view (try all three): new panel, exit with lanes
+panel turn 15,192,-1 420 180 0:0/0:0/0:0/0,45:1/45:2 4500 420 12A Spring Cypress Rd
+wait 3000
+panel turn 15,192,-1 390 165 0:0/0:0/0:0/0,45:1/45:2 4470 420 12A Spring Cypress Rd
+wait 3000
+panel turn 15,192,-1 360 150 0:0/0:0/0:0/0,45:1/45:2 4440 420 12A Spring Cypress Rd
+wait 3000
+panel turn 15,192,-1 330 135 0:0/0:0/0:0/0,45:1/45:2 4410 420 12A Spring Cypress Rd
+wait 3000
+panel turn 15,192,-1 300 120 0:0/0:0/0:0/0,45:1/45:2 4380 420 12A Spring Cypress Rd
+wait 3000
+panel turn 15,192,-1 270 105 0:0/0:0/0:0/0,45:1/45:2 4350 420 12A Spring Cypress Rd
+wait 3000
+panel turn 15,192,-1 240 90 0:0/0:0/0:0/0,45:1/45:2 4320 420 12A Spring Cypress Rd
+wait 3000
+panel turn 15,192,-1 210 75 0:0/0:0/0:0/0,45:1/45:2 4290 420 12A Spring Cypress Rd
+wait 3000
+panel turn 15,192,-1 180 60 0:0/0:0/0:0/0,45:1/45:2 4260 420 12A Spring Cypress Rd
+wait 3000
+panel turn 15,192,-1 150 45 0:0/0:0/0:0/0,45:1/45:2 4230 420 12A Spring Cypress Rd
+wait 3000
+panel turn 15,192,-1 120 30 0:0/0:0/0:0/0,45:1/45:2 4200 420 12A Spring Cypress Rd
+wait 3000
+panel turn 15,192,-1 90 15 0:0/0:0/0:0/0,45:1/45:2 4170 420 12A Spring Cypress Rd
+wait 3000
+panel kdk info
+say STEP E (24 s) any view: no lanes yet, exit and street
+panel turn 15,192,-1 2600 -1 - 6700 420 12A Spring Cypress Rd
+wait 3000
+panel turn 15,192,-1 2300 -1 - 6400 420 12A Spring Cypress Rd
+wait 3000
+panel turn 15,192,-1 2000 -1 - 6100 420 12A Spring Cypress Rd
+wait 3000
+panel turn 15,192,-1 1700 -1 - 5800 420 12A Spring Cypress Rd
+wait 3000
+say left turn with side streets
+panel turn 13,64,-1,0,192 400 200 - 5500 300 - Alpha St
+wait 3000
+panel turn 13,64,-1,0,192 310 150 - 5410 300 - Alpha St
+wait 3000
+panel turn 13,64,-1,0,192 220 100 - 5320 300 - Alpha St
+wait 3000
+panel turn 13,64,-1,0,192 130 50 - 5230 300 - Alpha St
+wait 3000
+panel kdk info
+say end, repeating in 5 s
+panel off
+wait 5000
+loop

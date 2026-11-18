@@ -344,6 +344,46 @@ change: 89 in the small view, 10 on the large-view map tab.
 and `setVisible(true)` on our viewport after every redraw; the log line says
 "vp visible" or "vp HIDDEN".
 
+**v26 result (photos, 2026-11-18): our drawing finally shows on the cockpit.**
+The map-tab banners drew with arrow, lanes, exit number, distance and ETA. Three
+problems remained:
+- **Text sat too high.** EAL text nodes are placed by their baseline, not their
+  top edge. A distance at y = 10 stood above the banner's top edge.
+- **The stock frame sits above our layer.** In the small view and on the car tab
+  the stock banner frame covered our panel. Our panel showed only through the
+  frame's window. Lanes and texts outside the window were hidden, or poked out
+  past the frame's right edge ("g...", "PM"). In the large view the speedometer
+  also covers the lower part.
+- **The stock straight line flashed.** On every banner show,
+  `CombiMapController.handleKdkSingleTerminal` sets displayable 20 to opacity 0.
+  It then starts a ~1 s fade-in (`AnimationControllerMIB2High.startKDKAnimation`,
+  partial popup 62). The fade overrode our opacity until our next redraw.
+
+Layout constants from the v24 log (`LayoutMIB2MMICombiTTSport`): banner position
+58/59 = 991,152 (small view) and 60/61 = 1105,110 (large view); crop sizes
+120/121 = 210x153 and 124/125 = 328x180.
+
+**v27 (user's call: "original style", stock banner on the map tab too):**
+- **One panel everywhere.** It is the size of the stock banner window
+  (210x150), with the stock frame left on. Bar on the left edge, maneuver
+  square, distance under it, arrival time and exit/street in a right column.
+  With lanes, a smaller square and the lanes across the bottom
+  ([docs/panel-preview-v27.png](docs/panel-preview-v27.png)).
+- **Text fixed.** Texts are placed by baseline (`base(top, size)`).
+- **Banner on by default.** The stock banner is on for a CarPlay route in every
+  view, map tab included; `/tmp/tt-rgi-nokdk` turns it off.
+- **Opacity watcher.** The nav engine's picture is transparent while our panel
+  is up (`panel kdk alpha auto`, the default) and goes back to opacity 100 when
+  the route ends. A watcher thread (`KdkGuard`) re-applies opacity 0 every
+  100 ms while the panel is up, and every 30 ms for 2 s after the banner is
+  switched on or the view changes.
+- **Calibration grid.** `panel grid on|off` draws an absolute screen grid over
+  the banner area (lines every 10/50/100 px, labelled "x,y" every 100 px), so
+  photos give the exact window in each view.
+- **Test.** `sh tt.sh play fit`: grid in the small view, car tab and map tab
+  (30 s each), then the panel with lanes, without lanes, and a left turn.
+- **Tuning.** `sh tt.sh panel kdk-small|kdk-large X Y [SCALE]`.
+
 Offline previews of the panel: [docs/panel-preview.png](docs/panel-preview.png),
 [docs/panel-preview-lanes.png](docs/panel-preview-lanes.png), [docs/panel-preview-compact.png](docs/panel-preview-compact.png) (text there is
 rendered by the PC; the car uses its own fonts).
@@ -388,7 +428,7 @@ iPhone data on top of it.
 
 ## 13. Open items
 
-- Car-test the v21 turn panel (parked demo, then a live Google/Apple Maps route); tune size, position and lane look.
-- Banner field test: which nav-info fields (distance, ETA, streets) the stock banner shows when fed without the bargraph.
-- Decide how our panel and the stock banner share the map tab with the CarPlay map.
+- v27 fit test: measure the stock banner window per view from the grid photos; set the panel size and position from them.
+- Live drive with Google/Apple Maps once the panel fits.
+- Try the iPhone's own maneuver card (hook switches `/mnt/app/root/mibr-carplay111-nav*`, see the MHI2Q comparison).
 - Refresh the installer package (`package/`) with the final jar.

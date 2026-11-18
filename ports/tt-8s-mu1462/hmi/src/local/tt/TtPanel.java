@@ -75,6 +75,11 @@ import de.esolutions.hmi.widgets.audi.base.eal.TextureDescription;
  * (TurnSpec, prerender) so the HMI thread no longer stalls 300-800 ms per redraw.
  * v26 (v25 photos: frame transparent/hidden, but none of our panels drew): a new EAL viewport starts
  * hidden; topVp.setVisible(true) is now called after every redraw.
+ * v27 (v26 photos: drawing works; texts sat too high, the stock frame is above our layer and
+ * shows us only through its window, the nav engine's straight line flashed on every banner show):
+ * one 210x150 panel in the stock banner window on every view (layout kdk, pos keys kdk-small /
+ * kdk-large), texts placed by baseline, the stock banner on for CarPlay routes everywhere, the
+ * nav picture kept transparent by a watcher (KdkGuard), and "panel grid on|off" for calibration.
  * Results go to /tmp/tt-rgd.log ("panel ..."). Java 1.4 library only.
  */
 public final class TtPanel {
@@ -260,6 +265,12 @@ public final class TtPanel {
         if (op.equals("kdk") && w.length >= 2) {
             return kdkCmd(m, w);
         }
+        if (op.equals("kdkguard")) {
+            return guardCheck(m);
+        }
+        if (op.equals("grid") && w.length >= 2) {
+            return gridCmd(m, w[1].equals("on"));
+        }
         if (op.equals("parent") && w.length >= 2) {
             clearTurn(m);
             shownMode = -1;
@@ -292,6 +303,16 @@ public final class TtPanel {
         if (op.equals("off")) {
             clearTurn(m);
             lastTurn = null;
+            if (kdkAlpha == -2) {
+                // The route ended: give stock navigation its banner back.
+                try {
+                    de.audi.atip.hmi.view.IDisplayManager d = dm(m);
+                    if (d != null) {
+                        d.setOpacity(KDK, 0, 100);
+                    }
+                } catch (Throwable ignored) {
+                }
+            }
             m.fireRenderEvent();
             return "turn panel off";
         }
@@ -443,6 +464,10 @@ public final class TtPanel {
     private static IWrappedNode3DText text1;
     private static IWrappedNode3DText text2;
     private static IWrappedNode3DText text3;
+    /** v27: the street under "Exit 12A" in the kdk layout. */
+    private static IWrappedNode3DText text4;
+    /** v27: our kdk panel is up, so the watcher keeps the nav engine's banner picture transparent. */
+    private static volatile boolean kdkPanelUp;
     private static IWrappedNode3D destRoot;
     private static IWrappedNode3DImage destImage;
     private static IWrappedNode3DText dest1;
@@ -478,6 +503,9 @@ public final class TtPanel {
             String k = rebuildArg(ic, metres, q, lanes, dq, etaUtc, exit, street);
             if (!k.equals(liveKey)) {
                 liveKey = k;
+                if (!liveShown) {
+                    burst(2000L);
+                }
                 liveShown = true;
                 prerender(k);
                 post(k, false);
@@ -488,6 +516,7 @@ public final class TtPanel {
 
     /** ZoomGate: large/small view changed; rebuild in the other layout. */
     public static void viewChanged() {
+        burst(2000L);
         String t = lastTurn;
         if (t != null) {
             post(t, false);
@@ -541,10 +570,14 @@ public final class TtPanel {
 
     /** Current panel mode from the view and the layout override. */
     static int currentMode() {
-        if (ZoomGate.small()) {
-            return TurnSpec.FULL;
+        if (layoutForce.equals("banners")) {
+            return ZoomGate.small() ? TurnSpec.FULL : TurnSpec.BANNER;
         }
-        return layoutForce.equals("full") ? TurnSpec.FLAP : TurnSpec.BANNER;
+        if (layoutForce.equals("full")) {
+            return ZoomGate.small() ? TurnSpec.FULL : TurnSpec.FLAP;
+        }
+        // v27 default ("kdk", also "auto"): one panel in the stock banner window, every view.
+        return TurnSpec.KDK;
     }
 
     /** Called on the feed thread before posting: draws the picture so the HMI thread only uploads it. */
@@ -609,7 +642,9 @@ public final class TtPanel {
         boolean full = mode != TurnSpec.BANNER;
         int pw = t.width(mode);
         int ph = t.height(mode);
-        StringBuffer b = new StringBuffer(mode == TurnSpec.FULL ? "small " : (mode == TurnSpec.FLAP ? "flap " : "large "));
+        String spot = mode == TurnSpec.KDK ? (ZoomGate.small() ? "kdk-small" : "kdk-large")
+            : (mode == TurnSpec.FULL ? "small" : (mode == TurnSpec.FLAP ? "flap" : "left"));
+        StringBuffer b = new StringBuffer(spot).append(' ');
         IWrappedNode3D front = parent(m);
         if (mainRoot == null) {
             mainRoot = m.createNode3D(front, "ttTurnPanel", (float) pw, (float) ph);
@@ -617,7 +652,7 @@ public final class TtPanel {
                 return "createNode3D null";
             }
         }
-        place(mainRoot, mode == TurnSpec.FULL ? "small" : (mode == TurnSpec.FLAP ? "flap" : "left"));
+        place(mainRoot, spot);
         String k = t.artKey(mode);
         if (!k.equals(artKey) || mainImage == null) {
             long t0 = System.currentTimeMillis();
@@ -645,6 +680,7 @@ public final class TtPanel {
             raise(mainRoot, text1);
             raise(mainRoot, text2);
             raise(mainRoot, text3);
+            raise(mainRoot, text4);
             if (verbose) {
                 b.append(pre ? "art pre " : "art ").append(System.currentTimeMillis() - t0).append(" ms ");
             }
@@ -653,7 +689,27 @@ public final class TtPanel {
         String street = t.street;
         String sub = exit.length() > 0 ? new StringBuffer("Exit ").append(exit).toString() : street;
         String destLine = destText(m, t.destM, t.eta);
-        if (full) {
+        if (mode == TurnSpec.KDK) {
+            // v27: texts are anchored at their baseline (v26 photos), hence base(top, size).
+            boolean lanes = t.hasLanes();
+            int col = lanes ? PanelArt.KDK_COL_LANES : PanelArt.KDK_COL;
+            int cw = pw - col - 6;
+            String first = exit.length() > 0 ? new StringBuffer("Exit ").append(exit).toString() : street;
+            if (lanes) {
+                // Square on the left, then time / distance / exit in a column, lanes across the bottom.
+                text1 = setText(m, mainRoot, text1, "ttTurnDist", distance(t.metres), 2, 28, (float) col, base(28, 28), cw);
+                text2 = setText(m, mainRoot, text2, "ttTurnSub", first, 1, 18, (float) col, base(62, 18), cw);
+            } else {
+                text1 = setText(m, mainRoot, text1, "ttTurnDist", distance(t.metres), 2, 28, 20f, base(106, 28), pw - 26);
+                text2 = setText(m, mainRoot, text2, "ttTurnSub", first, 1, 18, (float) col, base(38, 18), cw);
+            }
+            text3 = setText(m, mainRoot, text3, "ttTurnDest", clock(m, t.eta), 1, 18, (float) col, base(6, 18), cw);
+            String second = !lanes && exit.length() > 0 ? street : "";
+            text4 = setText(m, mainRoot, text4, "ttTurnStreet", second, 1, 16, (float) col, base(62, 16), cw);
+            if (destRoot != null) {
+                destRoot.setVisible(false);
+            }
+        } else if (full) {
             if (exit.length() > 0 && street.length() > 0) {
                 sub = new StringBuffer("Exit ").append(exit).append("  ").append(street).toString();
             }
@@ -689,6 +745,7 @@ public final class TtPanel {
             }
         }
         mainRoot.setVisible(true);
+        kdkPanelUp = mode == TurnSpec.KDK;
         if (topVp != null && parentMode.equals("top")) {
             try {
                 topVp.setForceInvisible(false);
@@ -731,7 +788,8 @@ public final class TtPanel {
     private static final int KDK = 20;
     private static final java.io.File KDK_FORCE = new java.io.File("/tmp/tt-rgi-kdk");
     private static String layoutForce = "auto";
-    private static int kdkAlpha = -1;
+    /** -2 = auto (v27 default): transparent while our kdk panel is up, stock otherwise; -1 = stock. */
+    private static int kdkAlpha = -2;
     private static int kdkPX = Integer.MIN_VALUE;
     private static int kdkPY;
 
@@ -745,7 +803,8 @@ public final class TtPanel {
 
     /** Re-applies our opacity/position for the stock banner displayable (the HMI resets them). */
     private static void applyKdk(EALManager m) {
-        if (kdkAlpha < 0 && kdkPX == Integer.MIN_VALUE) {
+        int alpha = kdkAlpha == -2 ? (kdkPanelUp ? 0 : -1) : kdkAlpha;
+        if (alpha < 0 && kdkPX == Integer.MIN_VALUE) {
             return;
         }
         de.audi.atip.hmi.view.IDisplayManager d = dm(m);
@@ -753,8 +812,8 @@ public final class TtPanel {
             return;
         }
         try {
-            if (kdkAlpha >= 0) {
-                d.setOpacity(KDK, 0, kdkAlpha);
+            if (alpha >= 0) {
+                d.setOpacity(KDK, 0, alpha);
             }
             if (kdkPX != Integer.MIN_VALUE) {
                 d.setPosition(KDK, 0, kdkPX, kdkPY);
@@ -771,8 +830,10 @@ public final class TtPanel {
         }
         try {
             if (w[1].equals("alpha") && w.length >= 3) {
-                kdkAlpha = num(w[2]);
-                if (kdkAlpha >= 0) {
+                kdkAlpha = w[2].equals("auto") ? -2 : num(w[2]);
+                if (kdkAlpha == -2) {
+                    d.setOpacity(KDK, 0, kdkPanelUp ? 0 : 100);
+                } else if (kdkAlpha >= 0) {
                     d.setOpacity(KDK, 0, kdkAlpha);
                 } else {
                     d.setOpacity(KDK, 0, 100);
@@ -812,6 +873,8 @@ public final class TtPanel {
                 b.append(" kdkVisible ").append(k.isKDKVisible(0)).append(" visibleKdk ").append(k.getVisibleKDK(0));
             }
             b.append(" small ").append(ZoomGate.small());
+            b.append(" alphaMode ").append(kdkAlpha).append(" guardFixes ").append(guardFixes)
+                .append(" lastSeen ").append(guardLastOpacity);
         } catch (Throwable t) {
             b.append(" error ").append(String.valueOf(t));
         }
@@ -928,9 +991,13 @@ public final class TtPanel {
     private static void place(IWrappedNode3D n, String which) {
         int x;
         int y;
-        if (which.equals("small")) {
+        if (which.equals("small") || which.equals("kdk-small")) {
+            // kdk-small/kdk-large: the stock banner spot (layout constants 58/59 and 60/61).
             x = 991;
             y = 152;
+        } else if (which.equals("kdk-large")) {
+            x = 1105;
+            y = 110;
         } else if (which.equals("flap")) {
             x = 1105;
             y = 110;
@@ -1034,6 +1101,8 @@ public final class TtPanel {
         text1 = null;
         text2 = null;
         text3 = null;
+        text4 = null;
+        kdkPanelUp = false;
         destRoot = null;
         destImage = null;
         dest1 = null;
@@ -1189,6 +1258,144 @@ public final class TtPanel {
             return Integer.parseInt(s, 16);
         } catch (Throwable t) {
             return 0x202020;
+        }
+    }
+
+    // ---- v27: keep the nav engine's banner picture transparent ----------------------------
+    // Stock (CombiMapController.handleKdkSingleTerminal) sets displayable 20 to opacity 0 and then
+    // runs a ~1 s fade-in (AnimationControllerMIB2High.startKDKAnimation) every time it shows the
+    // banner, which overrode our opacity until the next redraw (the straight line seen in v26).
+    // A small watcher thread re-checks it every 100 ms while our panel is up, and every 30 ms
+    // for 2 s after anything that shows the banner (route start, view change, TtRgi.kdkRg).
+    private static volatile long burstUntil;
+    private static volatile boolean guardRunning;
+    private static int guardFixes;
+    private static int guardLastOpacity = -1;
+
+    /** TtRgi.kdkRg: the stock banner is being switched on. */
+    public static void kdkShowing() {
+        burst(2000L);
+    }
+
+    static void burst(long ms) {
+        burstUntil = System.currentTimeMillis() + ms;
+        synchronized (LOCK) {
+            if (guardRunning) {
+                return;
+            }
+            guardRunning = true;
+        }
+        try {
+            Thread th = new Thread(new KdkGuard(), "ttKdkGuard");
+            th.setDaemon(true);
+            th.start();
+        } catch (Throwable t) {
+            guardRunning = false;
+        }
+    }
+
+    /** KdkGuard thread body. */
+    static void guardLoop() {
+        try {
+            while (true) {
+                long now = System.currentTimeMillis();
+                boolean watch = kdkAlpha == -2 && kdkPanelUp;
+                if (!watch && now > burstUntil) {
+                    break;
+                }
+                if (watch) {
+                    post("kdkguard", false);
+                }
+                Thread.sleep(now < burstUntil ? 30L : 100L);
+            }
+        } catch (Throwable ignored) {
+        }
+        guardRunning = false;
+    }
+
+    private static String guardCheck(EALManager m) {
+        if (kdkAlpha != -2 || !kdkPanelUp) {
+            return "idle";
+        }
+        de.audi.atip.hmi.view.IDisplayManager d = dm(m);
+        if (d == null) {
+            return "no dm";
+        }
+        try {
+            int o = d.getOpacity(KDK, 0);
+            if (o != 0) {
+                d.setOpacity(KDK, 0, 0);
+                guardFixes++;
+                guardLastOpacity = o;
+            }
+        } catch (Throwable ignored) {
+        }
+        return "ok";
+    }
+
+    /** v27: EAL text nodes are positioned by their baseline; this is the baseline for a top edge. */
+    private static float base(int top, int size) {
+        return top + size * 0.82f;
+    }
+
+    // ---- v27: calibration grid ---------------------------------------------------------------
+    private static IWrappedNode3D gridRoot;
+    private static final int GRID_X = 900;
+    private static final int GRID_Y = 40;
+    private static final int GRID_W = 540;
+    private static final int GRID_H = 460;
+
+    /** "panel grid on|off": absolute screen grid over the banner area, labelled every 100 px. */
+    private static String gridCmd(EALManager m, boolean on) {
+        if (gridRoot != null) {
+            try {
+                IWrappedNode3D p = gridRoot.getParent();
+                if (p != null) {
+                    p.remove(gridRoot);
+                }
+                m.destroy(gridRoot);
+            } catch (Throwable ignored) {
+            }
+            gridRoot = null;
+        }
+        if (!on) {
+            m.fireRenderEvent();
+            return "grid off";
+        }
+        IWrappedNode3D front = parent(m);
+        gridRoot = m.createNode3D(front, "ttGrid", (float) GRID_W, (float) GRID_H);
+        if (gridRoot == null) {
+            return "grid node failed";
+        }
+        gridRoot.setPosition((float) GRID_X, (float) GRID_Y, 0f);
+        PanelArt g = new PanelArt(GRID_W, GRID_H);
+        g.grid(GRID_X, GRID_Y);
+        image(m, gridRoot, g.rgba(), GRID_W, GRID_H);
+        int n = 0;
+        for (int x = 1000; x <= 1400; x += 100) {
+            for (int y = 100; y <= 400; y += 100) {
+                String t = new StringBuffer().append(x).append(',').append(y).toString();
+                IWrappedNode3DText tx = setText(m, gridRoot, null, "ttGridLabel", t, 2, 16,
+                    (float) (x - GRID_X + 3), base(y - GRID_Y + 3, 16), 0);
+                if (tx != null) {
+                    tx.setColor(0xFF40FF40);
+                    n++;
+                }
+            }
+        }
+        gridRoot.setVisible(true);
+        showTop();
+        m.fireRenderEvent();
+        return new StringBuffer("grid on, labels ").append(n).toString();
+    }
+
+    private static void showTop() {
+        if (topVp != null && parentMode.equals("top")) {
+            try {
+                topVp.setForceInvisible(false);
+                topVp.setVisible(true);
+            } catch (Throwable ignored) {
+            }
         }
     }
 }
