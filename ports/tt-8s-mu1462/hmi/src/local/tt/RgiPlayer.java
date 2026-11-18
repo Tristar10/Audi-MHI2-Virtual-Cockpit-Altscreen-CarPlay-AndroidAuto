@@ -61,6 +61,7 @@ public final class RgiPlayer implements Runnable {
             }
             if (!SCRIPT.exists() && playing) {
                 RgdBus.note(TtRgi.raw("clear", ""));
+                RgdBus.note(TtPanel.cmd("off"));
                 playing = false;
                 RgdBus.note("play: ended, iPhone feed resumes");
             }

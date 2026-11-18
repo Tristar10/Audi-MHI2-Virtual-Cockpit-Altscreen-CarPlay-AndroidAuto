@@ -17,10 +17,12 @@ final class PanelJob implements Runnable {
     public void run() {
         String r;
         try {
-            r = TtPanel.onHmiThread(eal, arg);
+            r = TtPanel.onHmiThread(eal, arg, id);
         } catch (Throwable t) {
             r = new StringBuffer("error ").append(String.valueOf(t)).toString();
         }
-        RgdBus.note(new StringBuffer("panel #").append(id).append(' ').append(arg).append(" -> ").append(r).toString());
+        if (id >= 0 || r.startsWith("error") || r.indexOf(" null") >= 0) {
+            RgdBus.note(new StringBuffer("panel #").append(id).append(' ').append(arg).append(" -> ").append(r).toString());
+        }
     }
 }

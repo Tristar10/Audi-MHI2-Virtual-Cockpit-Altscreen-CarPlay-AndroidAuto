@@ -33,7 +33,7 @@ Written November 2026. Everything described as "works" was checked on one car
 | Sport layout (small view) re-centring | Works | Picture shifted 453 px in `cluster_runtime` |
 | Steering-wheel scroll zoom on the CarPlay map | Works | `tt-zoom.jar` (ZoomGate) |
 | iPhone turn-by-turn data reaching the head unit | Works | chefranov hook + our `RgdBus` listener |
-| Turn-by-turn shown on the cockpit | In progress | Stock displays ruled out (section 9); own drawing started (section 10) |
+| Turn-by-turn shown on the cockpit | In progress | Stock displays ruled out (section 9); own panel with arrows, bar and lanes (section 10) |
 
 ## 2. How the TT differs from the MU1438 cars
 
@@ -239,10 +239,31 @@ width right, height a few pixels. Every EAL call reported success. Log facts:
 - `WrappedNode3D.setSize` only stores the size; the car's own `IconRendererHigh`
   sizes an image by `setScale(targetW / unscaledW, targetH / unscaledH, 1)`.
 
-**v20 (parked test, pending):** four drawing variants (image and text in a group,
-image directly on the layer scaled like stock icons, text only, QuickDraw
-outline), each logging the wrapper and native translation, scale and image size
-of every node up the parent chain.
+**v20 result (parked):** all four variants drew, the right size. The logs
+showed why v19 was a strip: the image came out 200x6. On the car
+`createTextureDescription` takes `(buffer, FORMAT, width, height)`, so our
+`(400, 200, 6)` meant format 400, width 200, height 6. Stock-style scaling then
+stretched that strip to the requested size. Text did not show because the car's
+`getFont` takes `(style, size)` (style 1 plain, 2 bold): our `getFont(40, 0)`
+asked for size 0.
+
+**v21 (parked test, pending):** both fixes, plus the real turn panel:
+
+- `PanelArt` draws the panel in plain Java (no AWT on the car): rounded
+  background, the maneuver picture (turn arrows with the junction's side
+  streets in grey, slight turns, motorway exits, forks, U-turn, roundabouts,
+  arrival flag), a vertical progress bar and a lane row. Lanes come from Google
+  Maps (`lgN_*`): preferred lanes white, good lanes light grey, others dark,
+  shown during the approach (state 3+) like stock.
+- Distance (bold) and street (plain) are HMI-font text nodes.
+- Drawn at the stock banner spot, following the large/small view. The iPhone
+  feed drives it live (`TtPanel.live`); `kit/panel-test.txt` is a parked demo.
+- The stock KOMO banner is now off by default, so the CarPlay map stays on the
+  map tab (`sh tt.sh mode kdk` brings it back for comparison).
+
+Offline previews of the panel: [docs/panel-preview.png](docs/panel-preview.png),
+[docs/panel-preview-lanes.png](docs/panel-preview-lanes.png) (text there is
+rendered by the PC; the car uses its own fonts).
 
 Plan: a hybrid. The stock banner keeps showing distance, ETA and streets (fed
 without the bargraph); our panel draws the turn arrow, and later lanes, from
@@ -284,7 +305,7 @@ iPhone data on top of it.
 
 ## 13. Open items
 
-- Fix the squashed panel (v19), then draw a real turn arrow, distance bar and lanes.
+- Car-test the v21 turn panel (parked demo, then a live Google/Apple Maps route); tune size, position and lane look.
 - Banner field test: which nav-info fields (distance, ETA, streets) the stock banner shows when fed without the bargraph.
 - Decide how our panel and the stock banner share the map tab with the CarPlay map.
 - Refresh the installer package (`package/`) with the final jar.

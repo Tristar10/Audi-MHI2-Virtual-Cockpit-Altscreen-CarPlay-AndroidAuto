@@ -284,6 +284,7 @@ public final class RgdBus implements Runnable {
         short[] icon = null;
         int mState = 0;
         int bar = -1;
+        String lanes = "-";
         long now = System.currentTimeMillis();
         synchronized (STATE) {
             if (!fromBus && offSince < 0L && !wantOn && !lastOn && !RgiPlayer.playing()) {
@@ -352,6 +353,9 @@ public final class RgdBus implements Runnable {
             if (main == 11 && dir == 0) {
                 dir = 255;
             }
+            if (first.length() > 0) {
+                lanes = laneSpec(first);
+            }
             pad = !RGI_NOPAD.exists();
             declare = !RGI_NOACTIVE.exists();
             if (main >= 0) {
@@ -384,6 +388,8 @@ public final class RgdBus implements Runnable {
         }
         try {
             String result = TtRgi.update(on, declare, icon, mState, turn, bar, dest, eta, road, next);
+            // Lanes only while approaching the turn, like stock.
+            TtPanel.live(on, icon, turn, bar, mState >= 3 ? lanes : "-", next);
             if (result != null) {
                 log(result);
             }
@@ -478,6 +484,65 @@ public final class RgdBus implements Runnable {
             return new short[] { (short) main, d, -1 };
         }
         return new short[] { (short) main, d };
+    }
+
+    /**
+     * Lane guidance for maneuver index idx as the panel's LANES token: lanes separated by
+     * '/', each ANGLE[,ANGLE...]:STATUS. From lgN_index / lgN_lane_directions (one angle per
+     * lane) / lgN_lane_angles ('|' per lane, ',' between extra angles) / lgN_lane_status.
+     * "-" when there is none. Call with STATE locked.
+     */
+    static String laneSpec(String idx) {
+        for (int k = 0; k < 32; k++) {
+            StringBuffer p = new StringBuffer("lg").append(k).append('_');
+            int plen = p.length();
+            if (!idx.equals(str(p.append("index").toString()).trim())) {
+                continue;
+            }
+            p.setLength(plen);
+            String[] dirs = split(str(p.append("lane_directions").toString()), ',');
+            p.setLength(plen);
+            String[] st = split(str(p.append("lane_status").toString()), ',');
+            p.setLength(plen);
+            String[] ang = split(str(p.append("lane_angles").toString()), '|');
+            if (dirs.length == 0 || (dirs.length == 1 && dirs[0].trim().length() == 0)) {
+                return "-";
+            }
+            StringBuffer b = new StringBuffer();
+            for (int i = 0; i < dirs.length && i < 12; i++) {
+                if (i > 0) {
+                    b.append('/');
+                }
+                String main = dirs[i].trim();
+                b.append(main.length() == 0 ? "0" : main);
+                if (i < ang.length) {
+                    String[] extra = split(ang[i], ',');
+                    for (int j = 0; j < extra.length; j++) {
+                        String e = extra[j].trim();
+                        if (e.length() > 0 && !e.equals(main)) {
+                            b.append(',').append(e);
+                        }
+                    }
+                }
+                b.append(':').append(i < st.length && st[i].trim().length() > 0 ? st[i].trim() : "0");
+            }
+            return b.toString();
+        }
+        return "-";
+    }
+
+    private static String[] split(String s, char sep) {
+        java.util.Vector v = new java.util.Vector();
+        int start = 0;
+        for (int i = 0; i <= s.length(); i++) {
+            if (i == s.length() || s.charAt(i) == sep) {
+                v.addElement(s.substring(start, i));
+                start = i + 1;
+            }
+        }
+        String[] out = new String[v.size()];
+        v.copyInto(out);
+        return out;
     }
 
     private static boolean same(byte[] a, byte[] b) {

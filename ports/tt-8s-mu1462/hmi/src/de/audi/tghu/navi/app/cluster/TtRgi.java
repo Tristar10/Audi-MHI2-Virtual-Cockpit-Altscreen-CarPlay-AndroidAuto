@@ -49,7 +49,8 @@ import org.dsi.ifc.navigation.DistanceToNextManeuver;
  */
 public final class TtRgi {
     private static final Object LOCK = new Object();
-    private static final File KDK_BLOCK = new File("/tmp/tt-rgi-nokdk");
+    /** v21: the stock KOMO banner is off by default (our own panel draws instead); this marker brings it back. */
+    private static final File KDK_ALLOW = new File("/tmp/tt-rgi-kdk");
     private static CombiBAPListener listener;
     private static volatile boolean carplayRg;
     /** Whether a CarPlay route is reported as "route active" right now. */
@@ -81,7 +82,7 @@ public final class TtRgi {
      * handler. Our own calls pass on only the real stock route state.
      */
     public static boolean kdkRg(boolean on) {
-        if (!on || caller != Thread.currentThread() || !KDK_BLOCK.exists()) {
+        if (!on || caller != Thread.currentThread() || KDK_ALLOW.exists()) {
             return on;
         }
         ClusterService cs = service();
@@ -99,7 +100,7 @@ public final class TtRgi {
 
     /** Patched KOMOService.updateVisibility: the nav engine's value, or true during a CarPlay route. */
     public static boolean komoVisible(boolean v) {
-        return v || (carplayRg && declared && !KDK_BLOCK.exists());
+        return v || (carplayRg && declared && KDK_ALLOW.exists());
     }
 
     /** Shows (or hides) the KOMO guidance view for a CarPlay route. Returns a log note. */
@@ -108,7 +109,7 @@ public final class TtRgi {
         if (k == null) {
             return " (no KOMO service)";
         }
-        if (on && KDK_BLOCK.exists()) {
+        if (on && !KDK_ALLOW.exists()) {
             return "";
         }
         try {

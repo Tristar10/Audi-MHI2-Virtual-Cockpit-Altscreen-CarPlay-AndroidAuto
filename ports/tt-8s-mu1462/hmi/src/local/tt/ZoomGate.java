@@ -36,6 +36,11 @@ public final class ZoomGate {
     private ZoomGate() {
     }
 
+    /** True while the cockpit shows the small view (1), false for large (0) or unknown. */
+    public static boolean small() {
+        return smallState == 1;
+    }
+
     /** CombiBAPListener.setMapScale(steps). */
     public static boolean zoom(int steps) {
         return send("bap", steps);
