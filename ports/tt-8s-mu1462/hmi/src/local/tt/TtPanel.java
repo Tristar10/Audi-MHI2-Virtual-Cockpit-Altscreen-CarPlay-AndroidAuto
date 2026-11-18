@@ -73,6 +73,8 @@ import de.esolutions.hmi.widgets.audi.base.eal.TextureDescription;
  * main viewport (210). Panels now go into our own viewport at index 225 (panel parent top|front),
  * the frame can be hidden (panel kdkbg hide|show), and pictures are rendered on the feed thread
  * (TurnSpec, prerender) so the HMI thread no longer stalls 300-800 ms per redraw.
+ * v26 (v25 photos: frame transparent/hidden, but none of our panels drew): a new EAL viewport starts
+ * hidden; topVp.setVisible(true) is now called after every redraw.
  * Results go to /tmp/tt-rgd.log ("panel ..."). Java 1.4 library only.
  */
 public final class TtPanel {
@@ -534,6 +536,8 @@ public final class TtPanel {
     private static String parentMode = "top";
     private static boolean hideKdkBg;
     private static IWrappedNode3D topNode;
+    /** v26: a new viewport starts hidden (WrappedViewport sets its link invisible); setVisible(true) shows it. */
+    private static de.esolutions.hmi.widgets.audi.base.eal.IWrappedViewport topVp;
 
     /** Current panel mode from the view and the layout override. */
     static int currentMode() {
@@ -584,6 +588,7 @@ public final class TtPanel {
                 de.esolutions.hmi.widgets.audi.base.eal.IWrappedLayer layer =
                     m.createLayer(vp, "ttTop", 0, m.getScreenWidth(), m.getScreenHeight(), 0);
                 topNode = layer == null ? null : layer.getMainNode();
+                topVp = vp;
                 RgdBus.note(new StringBuffer("panel top viewport ").append(topNode == null ? "failed" : dump(topNode))
                     .toString());
             } catch (Throwable e) {
@@ -684,6 +689,17 @@ public final class TtPanel {
             }
         }
         mainRoot.setVisible(true);
+        if (topVp != null && parentMode.equals("top")) {
+            try {
+                topVp.setForceInvisible(false);
+                topVp.setVisible(true);
+                if (verbose) {
+                    b.append("vp ").append(topVp.getLink().isVisible() ? "visible " : "HIDDEN ");
+                }
+            } catch (Throwable e) {
+                b.append("vp error ").append(String.valueOf(e)).append(' ');
+            }
+        }
         applyKdk(m);
         if (hideKdkBg) {
             try {

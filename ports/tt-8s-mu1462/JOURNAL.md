@@ -331,6 +331,19 @@ the feed/player thread (`TurnSpec`, `TtPanel.prerender`), so the HMI thread
 only uploads the texture. The stock banner stays off on the map tab by default:
 in the large view its frame covers the CarPlay map.
 
+**v25 result (photos and logs):** with displayable 20 at opacity 0 and the
+frame hidden, the stock frame is see-through (large view) or gone (small view,
+only the HMI's small chequered flag stays). But none of our panels drew, not
+even the map-tab banners. The log shows the viewport and every panel created
+at the right spot, and pre-rendering works (10–45 ms on the HMI thread instead
+of 300–870 ms). Cause: `WrappedViewport` sets its 2D link invisible in its
+constructor, and only `setVisible(true)` shows it. The display context does
+change: 89 in the small view, 10 on the large-view map tab.
+
+**v26 (parked test pending, same `kit/kdk-test.txt`):** `setForceInvisible(false)`
+and `setVisible(true)` on our viewport after every redraw; the log line says
+"vp visible" or "vp HIDDEN".
+
 Offline previews of the panel: [docs/panel-preview.png](docs/panel-preview.png),
 [docs/panel-preview-lanes.png](docs/panel-preview-lanes.png), [docs/panel-preview-compact.png](docs/panel-preview-compact.png) (text there is
 rendered by the PC; the car uses its own fonts).
