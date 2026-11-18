@@ -291,6 +291,29 @@ was changed to follow stock nav's two boxes:
 - Live tuning keys: `sh tt.sh panel left|right|small X Y [SCALE]`.
 - Preview: [docs/panel-preview-v23.png](docs/panel-preview-v23.png).
 
+**v23 result (car photos):** in the large view (map tab) both banners draw,
+with "Exit 12A", lanes and "6:15 PM", but both are clipped by the screen's
+rounded top corners. In the small view the enabled stock banner (the nav
+engine's placeholder: blue arrow in an ellipse, small chequered flag) covers our
+panel. On the car tab nothing of ours shows.
+
+Reading: the TT cluster draws its own gauges and pages (car tab, Consumption)
+and shows only parts of the head unit's picture: the map area, and the banner
+spot while the stock banner (KDK displayable 20, composited by the display
+manager above the HMI's EAL layers) is on. The EAL also has a
+`VIEWPORT_G24_KDK_BACKGROUND` (220) above the main viewport (210).
+
+**v24 (parked test, pending):** `kit/kdk-test.txt` forces the stock banner on
+in every view, then makes displayable 20 transparent
+(`HMIService.getDisplayManager().setOpacity(20, 0, alpha)`, re-applied on every
+redraw), then tries the full panel at the banner spot in the large view (for the
+car tab). `panel kdk info` logs displayable 20's opacity and position, the
+current display context and the displayable list. This should show whether our
+layer appears wherever the cluster shows the banner spot. Banner defaults moved
+inward: left 120,96 and right 1110,100. Also found:
+`IDisplayManagerKombiControl.createImageDisplayable(ResourceLocator, id)`, a
+possible way to put our own image layer on the cockpit picture if this fails.
+
 Offline previews of the panel: [docs/panel-preview.png](docs/panel-preview.png),
 [docs/panel-preview-lanes.png](docs/panel-preview-lanes.png), [docs/panel-preview-compact.png](docs/panel-preview-compact.png) (text there is
 rendered by the PC; the car uses its own fonts).

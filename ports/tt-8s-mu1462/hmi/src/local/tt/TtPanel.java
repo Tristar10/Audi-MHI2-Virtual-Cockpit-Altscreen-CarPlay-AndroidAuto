@@ -59,6 +59,14 @@ import de.esolutions.hmi.widgets.audi.base.eal.TextureDescription;
  * exit number or street, lanes, bar) and RIGHT (destination flag, distance, arrival time); the maps
  * already label roads. Small view = one FULL panel on the right with everything. pos-file keys:
  * left / right / small.
+ *
+ * v24 (car photos): in the small view the stock banner (KDK displayable 20, drawn by the nav engine
+ * and composited by the display manager) covers our panel, and on the car tab the cluster shows its
+ * own page. Keeping the banner "on" makes the cluster show the head unit's picture at the banner spot
+ * (every tab); making displayable 20 transparent should let our panel show there. Commands:
+ *   panel kdk info | kdk alpha N (0-100, -1 = stock) | kdk pos X Y | kdk pos stock | kdk force 1|0
+ *   panel layout auto|full|banners   large view: banners (map tab) or the full panel at the flap spot
+ * pos-file key for the large-view full panel: flap (default 1105,110).
  * Results go to /tmp/tt-rgd.log ("panel ..."). Java 1.4 library only.
  */
 public final class TtPanel {
@@ -237,6 +245,16 @@ public final class TtPanel {
         }
         if (op.equals("turn") && w.length >= 8) {
             return turnCmd(m, w, id >= 0);
+        }
+        if (op.equals("kdk") && w.length >= 2) {
+            return kdkCmd(m, w);
+        }
+        if (op.equals("layout") && w.length >= 2) {
+            layoutForce = w[1];
+            if (lastTurn != null) {
+                post(lastTurn, false);
+            }
+            return new StringBuffer("layout ").append(layoutForce).toString();
         }
         if (op.equals("off")) {
             clearTurn(m);
@@ -499,8 +517,9 @@ public final class TtPanel {
             return "turn needs MAIN,DIR";
         }
         lastTurn = rebuildArg(icon, metres, bar, lanes, destM, eta, exit, street);
-        boolean small = ZoomGate.small();
-        int mode = small ? 1 : 0;
+        boolean fullLarge = layoutForce.equals("full");
+        boolean small = ZoomGate.small() || fullLarge;
+        int mode = ZoomGate.small() ? 1 : (fullLarge ? 2 : 0);
         if (mode != shownMode) {
             clearTurn(m);
             shownMode = mode;
@@ -537,7 +556,7 @@ public final class TtPanel {
                 return "createNode3D null";
             }
         }
-        place(mainRoot, small ? "small" : "left");
+        place(mainRoot, mode == 1 ? "small" : (mode == 2 ? "flap" : "left"));
         String k = new StringBuffer().append(mode).append(',').append(main).append(',').append(dir).append(',')
             .append(bar).append(',').append(lanes == null ? "-" : lanes).append(keyOf(arms)).toString();
         if (!k.equals(artKey) || mainImage == null) {
@@ -601,11 +620,105 @@ public final class TtPanel {
                 destRoot.setVisible(false);
             }
         }
+        if (mode != 0 && destRoot != null) {
+            destRoot.setVisible(false);
+        }
         mainRoot.setVisible(true);
+        applyKdk(m);
         m.fireRenderEvent();
         if (verbose) {
             b.append("at ").append((int) mainRoot.getX()).append(',').append((int) mainRoot.getY())
                 .append(" t1 ").append(dump(text1));
+        }
+        return b.toString();
+    }
+
+    private static final int KDK = 20;
+    private static final java.io.File KDK_FORCE = new java.io.File("/tmp/tt-rgi-kdk");
+    private static String layoutForce = "auto";
+    private static int kdkAlpha = -1;
+    private static int kdkPX = Integer.MIN_VALUE;
+    private static int kdkPY;
+
+    private static de.audi.atip.hmi.view.IDisplayManager dm(EALManager m) {
+        try {
+            return m.getTerminal().getFramework().getHMIService().getDisplayManager();
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
+    /** Re-applies our opacity/position for the stock banner displayable (the HMI resets them). */
+    private static void applyKdk(EALManager m) {
+        if (kdkAlpha < 0 && kdkPX == Integer.MIN_VALUE) {
+            return;
+        }
+        de.audi.atip.hmi.view.IDisplayManager d = dm(m);
+        if (d == null) {
+            return;
+        }
+        try {
+            if (kdkAlpha >= 0) {
+                d.setOpacity(KDK, 0, kdkAlpha);
+            }
+            if (kdkPX != Integer.MIN_VALUE) {
+                d.setPosition(KDK, 0, kdkPX, kdkPY);
+            }
+        } catch (Throwable ignored) {
+        }
+    }
+
+    private static String kdkCmd(EALManager m, String[] w) {
+        de.audi.atip.hmi.view.IDisplayManager d = dm(m);
+        StringBuffer b = new StringBuffer("kdk ").append(w[1]);
+        if (d == null) {
+            return b.append(" no display manager").toString();
+        }
+        try {
+            if (w[1].equals("alpha") && w.length >= 3) {
+                kdkAlpha = num(w[2]);
+                if (kdkAlpha >= 0) {
+                    d.setOpacity(KDK, 0, kdkAlpha);
+                } else {
+                    d.setOpacity(KDK, 0, 100);
+                }
+            } else if (w[1].equals("pos") && w.length >= 3) {
+                if (w[2].equals("stock")) {
+                    kdkPX = Integer.MIN_VALUE;
+                    boolean small = ZoomGate.small();
+                    d.setPosition(KDK, 0, small ? 991 : 1105, small ? 152 : 110);
+                } else if (w.length >= 4) {
+                    kdkPX = num(w[2]);
+                    kdkPY = num(w[3]);
+                    d.setPosition(KDK, 0, kdkPX, kdkPY);
+                }
+            } else if (w[1].equals("force") && w.length >= 3) {
+                if (w[2].startsWith("1")) {
+                    new java.io.FileOutputStream(KDK_FORCE.getPath()).close();
+                } else {
+                    KDK_FORCE.delete();
+                }
+                de.audi.tghu.navi.app.cluster.TtRgi.viewChanged();
+            }
+            b.append(" | opacity ").append(d.getOpacity(KDK, 0));
+            int[] pos = d.getPosition(KDK, 0);
+            b.append(" pos ");
+            for (int i = 0; pos != null && i < pos.length; i++) {
+                b.append(i > 0 ? "," : "").append(pos[i]);
+            }
+            b.append(" context ").append(d.getCurrentContextID(0));
+            int[] ds = d.getDisplayables(0);
+            b.append(" displayables ");
+            for (int i = 0; ds != null && i < ds.length; i++) {
+                b.append(i > 0 ? "," : "").append(ds[i]);
+            }
+            if (d instanceof de.audi.tghu.fwhmi.IDisplayManagerKombiControl) {
+                de.audi.tghu.fwhmi.IDisplayManagerKombiControl k = (de.audi.tghu.fwhmi.IDisplayManagerKombiControl) d;
+                b.append(" kdkVisible ").append(k.isKDKVisible(0)).append(" visibleKdk ").append(k.getVisibleKDK(0));
+            }
+            b.append(" small ").append(ZoomGate.small());
+        } catch (Throwable t) {
+            b.append(" error ").append(String.valueOf(t));
         }
         return b.toString();
     }
@@ -728,7 +841,8 @@ public final class TtPanel {
     /**
      * Position and scale of one panel: "panel at" overrides the main panel; else /tmp/tt-panel-pos
      * lines "left X Y SCALE" / "right X Y SCALE" / "small X Y SCALE"; else the defaults
-     * (left 30,64 top-left of the map; right 1180,70 above the speedometer; small 991,152 banner spot).
+     * (left 120,96 top-left of the map; right 1110,100 above the speedometer; small 991,152 banner spot;
+     * flap 1105,110).
      */
     private static void place(IWrappedNode3D n, String which) {
         int x;
@@ -736,12 +850,17 @@ public final class TtPanel {
         if (which.equals("small")) {
             x = 991;
             y = 152;
+        } else if (which.equals("flap")) {
+            x = 1105;
+            y = 110;
         } else if (which.equals("right")) {
-            x = 1180;
-            y = 70;
+            // v24: v23 photos showed 1180,70 clipped by the rounded top-right corner.
+            x = 1110;
+            y = 100;
         } else {
-            x = 30;
-            y = 64;
+            // v24: v23 photos showed 30,64 clipped by the rounded top-left corner.
+            x = 120;
+            y = 96;
         }
         float scale = 1f;
         String[] v = posLine(which);

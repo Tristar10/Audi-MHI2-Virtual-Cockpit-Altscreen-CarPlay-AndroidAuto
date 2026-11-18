@@ -1,0 +1,75 @@
+# Stock banner spot test (tt-zoom v24), parked. Watch the small view right side, the car tab and the map tab.
+say kdk test start
+active 1
+panel turn 15,192,-1 600 90 0:0/0:0/0:0/0,45:1/45:2 4800 420 12A Spring Cypress Rd
+panel kdk info
+say STEP 1 (20 s): stock banner forced ON in all views, normal opacity
+panel kdk force 1
+panel kdk info
+panel turn 15,192,-1 600 255 0:0/0:0/0:0/0,45:1/45:2 4800 420 12A Spring Cypress Rd
+wait 3000
+panel turn 15,192,-1 580 246 0:0/0:0/0:0/0,45:1/45:2 4780 420 12A Spring Cypress Rd
+wait 3000
+panel turn 15,192,-1 560 238 0:0/0:0/0:0/0,45:1/45:2 4760 420 12A Spring Cypress Rd
+wait 3000
+panel turn 15,192,-1 540 229 0:0/0:0/0:0/0,45:1/45:2 4740 420 12A Spring Cypress Rd
+wait 3000
+panel turn 15,192,-1 520 221 0:0/0:0/0:0/0,45:1/45:2 4720 420 12A Spring Cypress Rd
+wait 3000
+panel turn 15,192,-1 500 212 0:0/0:0/0:0/0,45:1/45:2 4700 420 12A Spring Cypress Rd
+wait 3000
+say STEP 2 (30 s): stock banner made TRANSPARENT - our panel should show in its place (small view, car tab)
+panel kdk alpha 0
+panel kdk info
+panel turn 15,192,-1 560 238 0:0/0:0/0:0/0,45:1/45:2 4800 420 12A Spring Cypress Rd
+wait 3000
+panel turn 15,192,-1 540 229 0:0/0:0/0:0/0,45:1/45:2 4780 420 12A Spring Cypress Rd
+wait 3000
+panel turn 15,192,-1 520 221 0:0/0:0/0:0/0,45:1/45:2 4760 420 12A Spring Cypress Rd
+wait 3000
+panel turn 15,192,-1 500 212 0:0/0:0/0:0/0,45:1/45:2 4740 420 12A Spring Cypress Rd
+wait 3000
+panel turn 15,192,-1 480 204 0:0/0:0/0:0/0,45:1/45:2 4720 420 12A Spring Cypress Rd
+wait 3000
+panel turn 15,192,-1 460 195 0:0/0:0/0:0/0,45:1/45:2 4700 420 12A Spring Cypress Rd
+wait 3000
+panel turn 15,192,-1 440 187 0:0/0:0/0:0/0,45:1/45:2 4680 420 12A Spring Cypress Rd
+wait 3000
+panel turn 15,192,-1 420 178 0:0/0:0/0:0/0,45:1/45:2 4660 420 12A Spring Cypress Rd
+wait 3000
+panel turn 15,192,-1 400 170 0:0/0:0/0:0/0,45:1/45:2 4640 420 12A Spring Cypress Rd
+wait 3000
+panel turn 15,192,-1 380 161 0:0/0:0/0:0/0,45:1/45:2 4620 420 12A Spring Cypress Rd
+wait 3000
+panel kdk info
+say STEP 3 (30 s): large view uses the FULL panel at the banner spot (for the car tab), banner transparent
+panel layout full
+panel kdk info
+panel turn 15,192,-1 500 212 0:0/0:0/0:0/0,45:1/45:2 4800 420 12A Spring Cypress Rd
+wait 3000
+panel turn 15,192,-1 480 204 0:0/0:0/0:0/0,45:1/45:2 4780 420 12A Spring Cypress Rd
+wait 3000
+panel turn 15,192,-1 460 195 0:0/0:0/0:0/0,45:1/45:2 4760 420 12A Spring Cypress Rd
+wait 3000
+panel turn 15,192,-1 440 187 0:0/0:0/0:0/0,45:1/45:2 4740 420 12A Spring Cypress Rd
+wait 3000
+panel turn 15,192,-1 420 178 0:0/0:0/0:0/0,45:1/45:2 4720 420 12A Spring Cypress Rd
+wait 3000
+panel turn 15,192,-1 400 170 0:0/0:0/0:0/0,45:1/45:2 4700 420 12A Spring Cypress Rd
+wait 3000
+panel turn 15,192,-1 380 161 0:0/0:0/0:0/0,45:1/45:2 4680 420 12A Spring Cypress Rd
+wait 3000
+panel turn 15,192,-1 360 153 0:0/0:0/0:0/0,45:1/45:2 4660 420 12A Spring Cypress Rd
+wait 3000
+panel turn 15,192,-1 340 144 0:0/0:0/0:0/0,45:1/45:2 4640 420 12A Spring Cypress Rd
+wait 3000
+panel turn 15,192,-1 320 136 0:0/0:0/0:0/0,45:1/45:2 4620 420 12A Spring Cypress Rd
+wait 3000
+panel kdk info
+say STEP 4 (8 s): back to normal (banners, stock opacity, force off)
+panel layout auto
+panel kdk alpha -1
+panel kdk force 0
+panel kdk info
+wait 8000
+loop
