@@ -67,6 +67,12 @@ import de.esolutions.hmi.widgets.audi.base.eal.TextureDescription;
  *   panel kdk info | kdk alpha N (0-100, -1 = stock) | kdk pos X Y | kdk pos stock | kdk force 1|0
  *   panel layout auto|full|banners   large view: banners (map tab) or the full panel at the flap spot
  * pos-file key for the large-view full panel: flap (default 1105,110).
+ *
+ * v25 (v24 photos): with displayable 20 transparent the nav engine picture is gone, but the HMI's
+ * grey KDK frame (EAL viewport 220, G24_KDK_BACKGROUND) still covers our panel, which lived in the
+ * main viewport (210). Panels now go into our own viewport at index 225 (panel parent top|front),
+ * the frame can be hidden (panel kdkbg hide|show), and pictures are rendered on the feed thread
+ * (TurnSpec, prerender) so the HMI thread no longer stalls 300-800 ms per redraw.
  * Results go to /tmp/tt-rgd.log ("panel ..."). Java 1.4 library only.
  */
 public final class TtPanel {
@@ -127,6 +133,9 @@ public final class TtPanel {
 
     /** One "panel" playback command; the work is queued on the HMI thread. */
     public static String cmd(String arg) {
+        if (arg.startsWith("turn ")) {
+            prerender(arg);
+        }
         EALManager m = manager();
         if (m == null) {
             return "panel: no EALManager yet";
@@ -248,6 +257,28 @@ public final class TtPanel {
         }
         if (op.equals("kdk") && w.length >= 2) {
             return kdkCmd(m, w);
+        }
+        if (op.equals("parent") && w.length >= 2) {
+            clearTurn(m);
+            shownMode = -1;
+            parentMode = w[1];
+            if (lastTurn != null) {
+                post(lastTurn, false);
+            }
+            return new StringBuffer("parent ").append(parentMode).toString();
+        }
+        if (op.equals("kdkbg") && w.length >= 2) {
+            hideKdkBg = w[1].equals("hide");
+            try {
+                if (!hideKdkBg) {
+                    m.fireRenderEvent();
+                } else {
+                    m.hideKDKBackground();
+                }
+            } catch (Throwable e) {
+                return new StringBuffer("kdkbg error ").append(String.valueOf(e)).toString();
+            }
+            return new StringBuffer("kdkbg ").append(w[1]).append(" (show returns at the next stock redraw)").toString();
         }
         if (op.equals("layout") && w.length >= 2) {
             layoutForce = w[1];
@@ -446,6 +477,7 @@ public final class TtPanel {
             if (!k.equals(liveKey)) {
                 liveKey = k;
                 liveShown = true;
+                prerender(k);
                 post(k, false);
             }
         } catch (Throwable ignored) {
@@ -490,84 +522,109 @@ public final class TtPanel {
 
     /** Playback/live "turn ICON METRES BAR LANES DEST ETA EXIT STREET...". */
     private static String turnCmd(EALManager m, String[] w, boolean verbose) {
-        StringBuffer street = new StringBuffer();
-        for (int i = 8; i < w.length; i++) {
-            if (i > 8) {
-                street.append(' ');
-            }
-            street.append(w[i]);
+        TurnSpec t = TurnSpec.parse(w);
+        if (t == null) {
+            return "turn: bad arguments";
         }
-        long eta = -1L;
-        try {
-            eta = Long.parseLong(w[6]);
-        } catch (Throwable ignored) {
-            eta = -1L;
-        }
-        if (eta > 0L && eta < 100000000L) {
-            // Playback: seconds from now.
-            eta = System.currentTimeMillis() / 1000L + eta;
-        }
-        String exit = w[7].equals("-") ? "" : w[7];
-        return turn(m, ints(w[1]), num(w[2]), num(w[3]), w[4], num(w[5]), eta, exit, street.toString(), verbose);
+        return turn(m, t, verbose);
     }
 
-    private static String turn(EALManager m, int[] icon, int metres, int bar, String lanes, int destM, long eta,
-                               String exit, String street, boolean verbose) {
-        if (icon.length < 2) {
-            return "turn needs MAIN,DIR";
+    // ---- v25: pictures pre-rendered off the HMI thread; our own top viewport --------------
+    private static final java.util.Hashtable ART = new java.util.Hashtable();
+    private static String parentMode = "top";
+    private static boolean hideKdkBg;
+    private static IWrappedNode3D topNode;
+
+    /** Current panel mode from the view and the layout override. */
+    static int currentMode() {
+        if (ZoomGate.small()) {
+            return TurnSpec.FULL;
         }
-        lastTurn = rebuildArg(icon, metres, bar, lanes, destM, eta, exit, street);
-        boolean fullLarge = layoutForce.equals("full");
-        boolean small = ZoomGate.small() || fullLarge;
-        int mode = ZoomGate.small() ? 1 : (fullLarge ? 2 : 0);
+        return layoutForce.equals("full") ? TurnSpec.FLAP : TurnSpec.BANNER;
+    }
+
+    /** Called on the feed thread before posting: draws the picture so the HMI thread only uploads it. */
+    static void prerender(String arg) {
+        try {
+            TurnSpec t = TurnSpec.parse(words(arg));
+            if (t == null) {
+                return;
+            }
+            int mode = currentMode();
+            String k = t.artKey(mode);
+            synchronized (ART) {
+                if (ART.containsKey(k)) {
+                    return;
+                }
+            }
+            byte[] rgba = t.render(mode).rgba();
+            synchronized (ART) {
+                if (ART.size() > 6) {
+                    ART.clear();
+                }
+                ART.put(k, rgba);
+            }
+        } catch (Throwable ignored) {
+        }
+    }
+
+    /**
+     * The parent node for our panels. "top" (default): a layer in our own viewport at index 225,
+     * above the G24 KDK background viewport (220) that covered our panels in v24; "front": the
+     * HMI's popupsUnboundFront layer in the main viewport (210), as in v19-v24.
+     */
+    private static IWrappedNode3D parent(EALManager m) {
+        if (!parentMode.equals("top")) {
+            return m.getPartialPopupsFrontNode();
+        }
+        if (topNode == null) {
+            try {
+                de.esolutions.hmi.widgets.audi.base.eal.IWrappedViewport vp =
+                    m.createViewport("ttTop", 225, m.getScreenWidth(), m.getScreenHeight());
+                de.esolutions.hmi.widgets.audi.base.eal.IWrappedLayer layer =
+                    m.createLayer(vp, "ttTop", 0, m.getScreenWidth(), m.getScreenHeight(), 0);
+                topNode = layer == null ? null : layer.getMainNode();
+                RgdBus.note(new StringBuffer("panel top viewport ").append(topNode == null ? "failed" : dump(topNode))
+                    .toString());
+            } catch (Throwable e) {
+                RgdBus.note(new StringBuffer("panel top viewport error ").append(String.valueOf(e)).toString());
+                topNode = null;
+            }
+        }
+        return topNode != null ? topNode : m.getPartialPopupsFrontNode();
+    }
+
+    private static String turn(EALManager m, TurnSpec t, boolean verbose) {
+        lastTurn = rebuildArg(t.icon, t.metres, t.bar, t.lanes, t.destM, t.eta, t.exit, t.street);
+        int mode = currentMode();
         if (mode != shownMode) {
             clearTurn(m);
             shownMode = mode;
         }
-        int main = icon[0];
-        int dir = icon[1] & 0xff;
-        int[] arms = null;
-        if (icon.length > 3 && icon[2] == -1) {
-            arms = new int[icon.length - 3];
-            for (int i = 3; i < icon.length; i++) {
-                arms[i - 3] = icon[i] & 0xff;
-            }
-        }
-        int[][] laneAngles = null;
-        int[] laneStatus = null;
-        if (lanes != null && !lanes.equals("-") && lanes.length() > 0) {
-            String[] ls = split(lanes, '/');
-            laneAngles = new int[ls.length][];
-            laneStatus = new int[ls.length];
-            for (int i = 0; i < ls.length; i++) {
-                int c = ls[i].indexOf(':');
-                laneAngles[i] = ints(c < 0 ? ls[i] : ls[i].substring(0, c));
-                laneStatus[i] = c < 0 ? 0 : num(ls[i].substring(c + 1));
-            }
-        }
-        boolean hasLanes = laneAngles != null;
-        int pw = small ? FULL_W : LEFT_W;
-        int ph = small ? FULL_H : (hasLanes ? LEFT_H_LANES : LEFT_H);
-        StringBuffer b = new StringBuffer(small ? "small " : "large ");
-        IWrappedNode3D front = m.getPartialPopupsFrontNode();
+        boolean full = mode != TurnSpec.BANNER;
+        int pw = t.width(mode);
+        int ph = t.height(mode);
+        StringBuffer b = new StringBuffer(mode == TurnSpec.FULL ? "small " : (mode == TurnSpec.FLAP ? "flap " : "large "));
+        IWrappedNode3D front = parent(m);
         if (mainRoot == null) {
             mainRoot = m.createNode3D(front, "ttTurnPanel", (float) pw, (float) ph);
             if (mainRoot == null) {
                 return "createNode3D null";
             }
         }
-        place(mainRoot, mode == 1 ? "small" : (mode == 2 ? "flap" : "left"));
-        String k = new StringBuffer().append(mode).append(',').append(main).append(',').append(dir).append(',')
-            .append(bar).append(',').append(lanes == null ? "-" : lanes).append(keyOf(arms)).toString();
+        place(mainRoot, mode == TurnSpec.FULL ? "small" : (mode == TurnSpec.FLAP ? "flap" : "left"));
+        String k = t.artKey(mode);
         if (!k.equals(artKey) || mainImage == null) {
             long t0 = System.currentTimeMillis();
-            PanelArt art = new PanelArt(pw, ph);
-            if (small) {
-                art.full(main, dir, arms, bar, laneAngles, laneStatus);
-            } else {
-                art.banner(main, dir, arms, bar, laneAngles, laneStatus);
+            byte[] rgba;
+            synchronized (ART) {
+                rgba = (byte[]) ART.get(k);
             }
-            IWrappedNode3DImage img = image(m, mainRoot, art);
+            boolean pre = rgba != null;
+            if (rgba == null) {
+                rgba = t.render(mode).rgba();
+            }
+            IWrappedNode3DImage img = image(m, mainRoot, rgba, pw, ph);
             if (img == null) {
                 return "image null";
             }
@@ -584,53 +641,75 @@ public final class TtPanel {
             raise(mainRoot, text2);
             raise(mainRoot, text3);
             if (verbose) {
-                b.append("art ").append(System.currentTimeMillis() - t0).append(" ms ");
+                b.append(pre ? "art pre " : "art ").append(System.currentTimeMillis() - t0).append(" ms ");
             }
         }
+        String exit = t.exit;
+        String street = t.street;
         String sub = exit.length() > 0 ? new StringBuffer("Exit ").append(exit).toString() : street;
-        String destLine = destText(m, destM, eta);
-        if (small) {
+        String destLine = destText(m, t.destM, t.eta);
+        if (full) {
             if (exit.length() > 0 && street.length() > 0) {
                 sub = new StringBuffer("Exit ").append(exit).append("  ").append(street).toString();
             }
-            text1 = setText(m, mainRoot, text1, "ttTurnDist", distance(metres), 2, 40, 40f, (float) (ph - 158), pw - 56);
+            text1 = setText(m, mainRoot, text1, "ttTurnDist", distance(t.metres), 2, 40, 40f, (float) (ph - 158), pw - 56);
             text2 = setText(m, mainRoot, text2, "ttTurnSub", sub, 1, 24, 40f, (float) (ph - 106), pw - 56);
             text3 = setText(m, mainRoot, text3, "ttTurnDest", destLine, 1, 22, 60f, (float) (ph - 44), pw - 76);
+            if (destRoot != null) {
+                destRoot.setVisible(false);
+            }
         } else {
-            int s = hasLanes ? ph - 62 : ph - 14;
+            int s = t.hasLanes() ? ph - 62 : ph - 14;
             int tx = s + 14;
             int tw = pw - tx - 20;
-            text1 = setText(m, mainRoot, text1, "ttTurnDist", distance(metres), 2, 34, (float) tx, 10f, tw);
+            text1 = setText(m, mainRoot, text1, "ttTurnDist", distance(t.metres), 2, 34, (float) tx, 10f, tw);
             text2 = setText(m, mainRoot, text2, "ttTurnSub", sub, 1, 21, (float) tx, 56f, tw);
-            // Right banner: destination.
             if (destLine.length() > 0) {
                 if (destRoot == null) {
                     destRoot = m.createNode3D(front, "ttDestPanel", (float) RIGHT_W, (float) RIGHT_H);
-                    PanelArt da = new PanelArt(RIGHT_W, RIGHT_H);
-                    da.destination();
-                    destImage = destRoot == null ? null : image(m, destRoot, da);
+                    if (destRoot != null) {
+                        PanelArt da = new PanelArt(RIGHT_W, RIGHT_H);
+                        da.destination();
+                        destImage = image(m, destRoot, da.rgba(), RIGHT_W, RIGHT_H);
+                    }
                 }
                 if (destRoot != null) {
                     place(destRoot, "right");
-                    dest1 = setText(m, destRoot, dest1, "ttDestDist", distance(destM), 2, 28, 76f, 6f, RIGHT_W - 90);
-                    dest2 = setText(m, destRoot, dest2, "ttDestEta", clock(m, eta), 1, 22, 76f, 42f, RIGHT_W - 90);
+                    dest1 = setText(m, destRoot, dest1, "ttDestDist", distance(t.destM), 2, 28, 76f, 6f, RIGHT_W - 90);
+                    dest2 = setText(m, destRoot, dest2, "ttDestEta", clock(m, t.eta), 1, 22, 76f, 42f, RIGHT_W - 90);
                     destRoot.setVisible(true);
                 }
             } else if (destRoot != null) {
                 destRoot.setVisible(false);
             }
         }
-        if (mode != 0 && destRoot != null) {
-            destRoot.setVisible(false);
-        }
         mainRoot.setVisible(true);
         applyKdk(m);
+        if (hideKdkBg) {
+            try {
+                m.hideKDKBackground();
+            } catch (Throwable ignored) {
+            }
+        }
         m.fireRenderEvent();
         if (verbose) {
             b.append("at ").append((int) mainRoot.getX()).append(',').append((int) mainRoot.getY())
-                .append(" t1 ").append(dump(text1));
+                .append(" parent ").append(parentMode).append(" t1 ").append(dump(text1));
         }
         return b.toString();
+    }
+
+    private static IWrappedNode3DImage image(EALManager m, IWrappedNode3D parent, byte[] rgba, int w, int h) {
+        ByteBuffer buf = ByteBuffer.allocateDirect(rgba.length);
+        buf.put(rgba);
+        buf.rewind();
+        TextureDescription d = m.createTextureDescription(buf, 6, w, h, null, new Object());
+        IWrappedNode3DImage img = m.createImage3D(parent, "ttArt", d, 0, true, "ttPanel");
+        if (img != null) {
+            img.setScale((float) w / img.getUnscaledWidth(), (float) h / img.getUnscaledHeight(), 1f);
+            img.setPosition(0f, 0f, 0f);
+        }
+        return img;
     }
 
     private static final int KDK = 20;
@@ -721,20 +800,6 @@ public final class TtPanel {
             b.append(" error ").append(String.valueOf(t));
         }
         return b.toString();
-    }
-
-    private static IWrappedNode3DImage image(EALManager m, IWrappedNode3D parent, PanelArt art) {
-        byte[] rgba = art.rgba();
-        ByteBuffer buf = ByteBuffer.allocateDirect(rgba.length);
-        buf.put(rgba);
-        buf.rewind();
-        TextureDescription d = m.createTextureDescription(buf, 6, art.width(), art.height(), null, new Object());
-        IWrappedNode3DImage img = m.createImage3D(parent, "ttArt", d, 0, true, "ttPanel");
-        if (img != null) {
-            img.setScale((float) art.width() / img.getUnscaledWidth(), (float) art.height() / img.getUnscaledHeight(), 1f);
-            img.setPosition(0f, 0f, 0f);
-        }
-        return img;
     }
 
     /** Re-adds a text node so it is drawn after (above) a newly created picture. */

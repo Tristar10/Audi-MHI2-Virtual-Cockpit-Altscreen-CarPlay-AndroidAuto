@@ -31,6 +31,7 @@ public final class VerifyZoom {
             "local/tt/ManeuverMapper.class",
             "local/tt/RgiPlayer.class",
             "local/tt/TtPanel.class",
+            "local/tt/TurnSpec.class",
             "de/audi/tghu/navi/app/cluster/ClusterViewMode.class",
             "de/audi/tghu/navi/app/cluster/KOMOService.class"
         };

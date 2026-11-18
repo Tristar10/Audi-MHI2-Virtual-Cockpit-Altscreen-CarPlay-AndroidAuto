@@ -314,6 +314,23 @@ inward: left 120,96 and right 1110,100. Also found:
 `IDisplayManagerKombiControl.createImageDisplayable(ResourceLocator, id)`, a
 possible way to put our own image layer on the cockpit picture if this fails.
 
+**v24 result (car photos and logs):** displayable 20 obeys `setOpacity`
+(logged 100, then 0, then 100) and sits at 991,152 (small view) or 1105,110
+(large view). At opacity 0 the nav engine's picture is gone, but a grey HMI
+frame stays (large view: a grey box headed "2.9 mi" over the map; small view:
+a grid with a small chequered flag), and our panel does not show through. That
+frame is the EAL `G24_KDK_BACKGROUND` viewport (220, `EALManager.show/hideKDKBackground`),
+above the main viewport (210) where our layer was. The display context stayed
+89 whatever the tab, so it cannot tell tabs apart. Full-panel drawing took
+300–870 ms on the HMI thread.
+
+**v25 (parked test pending, `kit/kdk-test.txt`):** our panels go into our own
+viewport at index 225 (`EALManager.createViewport/createLayer`), above the frame.
+The frame can also be hidden (`panel kdkbg hide`). Pictures are pre-rendered on
+the feed/player thread (`TurnSpec`, `TtPanel.prerender`), so the HMI thread
+only uploads the texture. The stock banner stays off on the map tab by default:
+in the large view its frame covers the CarPlay map.
+
 Offline previews of the panel: [docs/panel-preview.png](docs/panel-preview.png),
 [docs/panel-preview-lanes.png](docs/panel-preview-lanes.png), [docs/panel-preview-compact.png](docs/panel-preview-compact.png) (text there is
 rendered by the PC; the car uses its own fonts).
