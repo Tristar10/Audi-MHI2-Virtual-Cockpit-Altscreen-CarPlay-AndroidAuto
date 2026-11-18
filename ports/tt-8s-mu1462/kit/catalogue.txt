@@ -1,0 +1,210 @@
+# tt-zoom v14 playback: arrow catalogue (about 2.5 minutes, then a distance countdown).
+# Each step shows its code in the street line. Film the cockpit. Delete this file to end.
+active 1
+dest 5300
+eta 900
+road Catalogue test
+turn 300
+wait 2000
+say 1 11,255 follow road (stock)
+icon 11,255
+next 1 follow road (stock)  [11,255]
+wait 3000
+say 2 11,0 follow road dir0
+icon 11,0
+next 2 follow road dir0  [11,0]
+wait 3000
+say 3 13,0,-1,0 turn straight
+icon 13,0,-1,0
+next 3 turn straight  [13,0,-1,0]
+wait 3000
+say 4 13,32,-1,0 turn slight left
+icon 13,32,-1,0
+next 4 turn slight left  [13,32,-1,0]
+wait 3000
+say 5 13,64,-1,0 turn left
+icon 13,64,-1,0
+next 5 turn left  [13,64,-1,0]
+wait 3000
+say 6 13,96,-1,0 turn sharp left
+icon 13,96,-1,0
+next 6 turn sharp left  [13,96,-1,0]
+wait 3000
+say 7 13,160,-1,0 turn sharp right
+icon 13,160,-1,0
+next 7 turn sharp right  [13,160,-1,0]
+wait 3000
+say 8 13,192,-1,0 turn right
+icon 13,192,-1,0
+next 8 turn right  [13,192,-1,0]
+wait 3000
+say 9 13,224,-1,0 turn slight right
+icon 13,224,-1,0
+next 9 turn slight right  [13,224,-1,0]
+wait 3000
+say 10 13,64 turn left 2 numbers
+icon 13,64
+next 10 turn left 2 numbers  [13,64]
+wait 3000
+say 11 13,64,0,0 turn left x 0,0
+icon 13,64,0,0
+next 11 turn left x 0,0  [13,64,0,0]
+wait 3000
+say 12 13,64,-1,1 turn left x -1,1
+icon 13,64,-1,1
+next 12 turn left x -1,1  [13,64,-1,1]
+wait 3000
+say 13 13,64,-1,2,0,192 turn left x -1,2,0,192
+icon 13,64,-1,2,0,192
+next 13 turn left x -1,2,0,192  [13,64,-1,2,0,192]
+wait 3000
+say 14 14,64,-1,0 turn onto main road
+icon 14,64,-1,0
+next 14 turn onto main road  [14,64,-1,0]
+wait 3000
+say 15 15,224,-1,0 exit right
+icon 15,224,-1,0
+next 15 exit right  [15,224,-1,0]
+wait 3000
+say 16 16,32,-1,0 exit left
+icon 16,32,-1,0
+next 16 exit left  [16,32,-1,0]
+wait 3000
+say 17 19,64,-1,0 fork left
+icon 19,64,-1,0
+next 17 fork left  [19,64,-1,0]
+wait 3000
+say 18 19,192,-1,0 fork right
+icon 19,192,-1,0
+next 18 fork right  [19,192,-1,0]
+wait 3000
+say 19 20,0,-1,0 fork 3 middle
+icon 20,0,-1,0
+next 19 fork 3 middle  [20,0,-1,0]
+wait 3000
+say 20 21,192,-1,0 roundabout 1st exit
+icon 21,192,-1,0
+next 20 roundabout 1st exit  [21,192,-1,0]
+wait 3000
+say 21 21,0,-1,0 roundabout straight
+icon 21,0,-1,0
+next 21 roundabout straight  [21,0,-1,0]
+wait 3000
+say 22 21,64,-1,0 roundabout 3rd exit
+icon 21,64,-1,0
+next 22 roundabout 3rd exit  [21,64,-1,0]
+wait 3000
+say 23 21,128,-1,0 roundabout u-turn
+icon 21,128,-1,0
+next 23 roundabout u-turn  [21,128,-1,0]
+wait 3000
+say 24 26,192,-1,0 leave roundabout
+icon 26,192,-1,0
+next 24 leave roundabout  [26,192,-1,0]
+wait 3000
+say 25 25,64,-1,0 u-turn left
+icon 25,64,-1,0
+next 25 u-turn left  [25,64,-1,0]
+wait 3000
+say 26 25,192,-1,0 u-turn right
+icon 25,192,-1,0
+next 26 u-turn right  [25,192,-1,0]
+wait 3000
+say 27 12,64,-1,0 change lane left
+icon 12,64,-1,0
+next 27 change lane left  [12,64,-1,0]
+wait 3000
+say 28 12,192,-1,0 change lane right
+icon 12,192,-1,0
+next 28 change lane right  [12,192,-1,0]
+wait 3000
+say 29 28,64,-1,0 prepare turn left
+icon 28,64,-1,0
+next 29 prepare turn left  [28,64,-1,0]
+wait 3000
+say 30 29,0,-1,0 prepare roundabout
+icon 29,0,-1,0
+next 30 prepare roundabout  [29,0,-1,0]
+wait 3000
+say 31 34,64,-1,0 michigan turn
+icon 34,64,-1,0
+next 31 michigan turn  [34,64,-1,0]
+wait 3000
+say 32 35,64,-1,0 double turn
+icon 35,64,-1,0
+next 32 double turn  [35,64,-1,0]
+wait 3000
+say 33 3,0 arrived
+icon 3,0
+next 33 arrived  [3,0]
+wait 3000
+say 34 3,64 arrived left side
+icon 3,64
+next 34 arrived left side  [3,64]
+wait 3000
+say 35 3,192 arrived right side
+icon 3,192
+next 35 arrived right side  [3,192]
+wait 3000
+say 36 4,0 near destination
+icon 4,0
+next 36 near destination  [4,0]
+wait 3000
+say 37 2,32 direction to destination
+icon 2,32
+next 37 direction to destination  [2,32]
+wait 3000
+say 38 38,0 waypoint
+icon 38,0
+next 38 waypoint  [38,0]
+wait 3000
+say 39 6,96 off road heading
+icon 6,96
+next 39 off road heading  [6,96]
+wait 3000
+say 40 9,0 calculating route
+icon 9,0
+next 40 calculating route  [9,0]
+wait 3000
+say 41 10,0 recalculating
+icon 10,0
+next 41 recalculating  [10,0]
+wait 3000
+say 42 1,0 no info
+icon 1,0
+next 42 no info  [1,0]
+wait 3000
+say 43 0,0 no symbol
+icon 0,0
+next 43 no symbol  [0,0]
+wait 3000
+say countdown with bargraph
+icon 13,192,-1,0
+next countdown right turn
+turn 500 0
+wait 1500
+turn 400 50
+wait 1500
+turn 300 100
+wait 1500
+turn 200 150
+wait 1500
+turn 100 200
+wait 1500
+turn 50 230
+wait 1500
+turn 10 255
+wait 1500
+say countdown without bargraph
+turn 500
+wait 1500
+turn 300
+wait 1500
+turn 150
+wait 1500
+turn 50
+wait 1500
+turn 0
+wait 1500
+say done - holding last state; delete the file to end
+next catalogue finished

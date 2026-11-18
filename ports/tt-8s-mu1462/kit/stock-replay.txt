@@ -1,0 +1,633 @@
+# Stock navigation replay: what the TT's own nav sent on the run3 route
+# (Spring Cypress exit, right on Spring-Cypress Rd, right on Boudreaux Rd, left on Grand Pkwy).
+# Sent through tt-zoom v15 exactly as recorded, with long straight stretches shortened.
+say stock replay start
+active 1
+eta 1500
+road TX-249 N/Tomball Pkwy
+next TX-249
+state 1
+icon 11,255
+dest 14000
+turn 3400
+wait 3000
+dest 13859
+wait 250
+turn 3386
+wait 250
+icon 12,192
+say maneuver state 2
+wait 57
+state 2
+wait 250
+turn 3230
+wait 250
+dest 13536
+wait 250
+turn 3068
+wait 250
+turn 2900
+wait 77
+dest 13234
+wait 250
+turn 2728
+wait 250
+dest 12920
+wait 250
+turn 2556
+wait 250
+turn 2388
+wait 250
+dest 12606
+wait 250
+turn 2217
+wait 250
+turn 2038
+wait 250
+dest 12279
+wait 250
+turn 1850
+wait 250
+icon 15,192,-1
+say maneuver state 3
+wait 105
+state 3
+wait 500
+turn 1692 249
+wait 500
+turn 1631 240
+dest 11965
+wait 500
+turn 1571 231
+wait 500
+turn 1510 222
+wait 500
+turn 1449 213
+wait 500
+turn 1388 204
+wait 500
+turn 1329 195
+dest 11663
+wait 500
+turn 1273 187
+wait 500
+turn 1218 179
+wait 500
+turn 1161 171
+wait 500
+turn 1110 163
+wait 500
+turn 1055 155
+wait 500
+dest 11360
+wait 500
+turn 1000 147
+wait 500
+turn 943 138
+wait 500
+turn 886 130
+wait 500
+turn 828 122
+wait 500
+turn 772 113
+wait 500
+turn 715 105
+dest 11049
+wait 500
+turn 658 96
+wait 500
+turn 602 88
+wait 500
+turn 546 80
+wait 500
+turn 493 72
+wait 500
+turn 437 64
+wait 500
+dest 10742
+wait 500
+turn 381 56
+wait 500
+turn 325 47
+wait 500
+turn 270 39
+wait 500
+turn 213 31
+wait 500
+turn 159 23
+wait 500
+turn 105 15
+dest 10439
+say maneuver state 4
+state 4
+wait 500
+turn 49 7
+wait 500
+turn 20 2
+wait 500
+turn 0 0
+wait 500
+icon 15,192,-1,-96
+wait 123
+icon 12,192
+next Spring-Cypress Rd
+say maneuver state 2
+wait 85
+state 2
+wait 250
+turn 667
+wait 250
+dest 10123
+wait 250
+turn 490
+wait 250
+icon 13,192,-1,64,32,0,-63
+say maneuver state 3
+wait 76
+state 3
+wait 500
+turn 375 223
+wait 500
+road TX-249
+wait 500
+icon 10,208
+wait 500
+dest 12290
+next 
+wait 61
+road TX-249 N/Tomball Pkwy
+wait 500
+turn 1607
+wait 140
+icon 15,192,-1
+next Tomball Pkwy
+wait 500
+turn 1579 232
+wait 500
+turn 1526 224
+wait 500
+turn 1476 217
+wait 500
+turn 1427 210
+wait 500
+turn 1375 202
+wait 500
+dest 11976
+wait 500
+turn 1323 195
+wait 500
+turn 1272 187
+wait 500
+turn 1217 179
+wait 500
+turn 1162 171
+wait 500
+turn 1105 162
+wait 500
+turn 1047 154
+dest 11673
+wait 500
+turn 989 145
+wait 500
+turn 931 137
+wait 500
+turn 875 128
+wait 500
+turn 820 120
+wait 500
+turn 767 113
+wait 500
+dest 11365
+wait 500
+turn 712 104
+wait 500
+turn 658 96
+wait 500
+turn 604 89
+wait 500
+turn 553 81
+wait 500
+turn 496 73
+wait 500
+turn 440 64
+wait 500
+dest 11039
+wait 500
+turn 385 56
+wait 500
+turn 330 48
+wait 500
+turn 250 36
+wait 500
+turn 196 28
+wait 500
+turn 142 20
+say maneuver state 4
+wait 500
+state 4
+wait 500
+turn 86 12
+dest 10712
+wait 500
+turn 59 8
+wait 500
+turn 33 4
+wait 500
+turn 6 0
+wait 500
+turn 0 0
+wait 500
+icon 15,192,-1,-96
+wait 115
+icon 11,255
+next Boudreaux Rd
+say maneuver state 1
+wait 81
+state 1
+wait 250
+dest 10401
+wait 250
+turn 2855
+wait 250
+turn 2717
+wait 250
+road TX-249 N/Tomball Pkwy
+wait 250
+turn 2581
+wait 250
+dest 10080
+wait 250
+turn 2451
+wait 250
+turn 2333
+wait 250
+dest 9768
+wait 250
+turn 2232
+wait 250
+turn 2144
+wait 250
+turn 2065
+wait 250
+turn 1982
+wait 250
+dest 9457
+wait 250
+turn 1895
+wait 250
+turn 1836
+wait 250
+turn 1784
+wait 250
+turn 1736
+wait 250
+turn 1706
+wait 250
+turn 1686
+wait 250
+turn 1638
+wait 250
+dest 9149
+wait 250
+turn 1573
+wait 250
+turn 1496
+wait 250
+turn 1409
+wait 250
+turn 1325
+dest 8846
+wait 250
+icon 12,192
+say maneuver state 2
+state 2
+wait 250
+turn 1234
+wait 250
+turn 1121
+wait 250
+dest 8536
+wait 250
+turn 994
+wait 250
+turn 862
+wait 250
+turn 728
+wait 250
+dest 8229
+wait 250
+turn 606
+wait 250
+turn 503
+wait 250
+icon 13,192,-1,64,0,65
+say maneuver state 3
+state 3
+wait 500
+turn 405 241
+dest 7926
+wait 500
+turn 369 220
+wait 500
+turn 338 201
+wait 500
+turn 306 182
+wait 500
+turn 276 164
+wait 500
+turn 247 147
+wait 500
+turn 220 131
+wait 500
+turn 202 120
+wait 500
+turn 196 117
+wait 500
+turn 188 112
+wait 500
+turn 176 105
+wait 500
+turn 159 94
+wait 500
+turn 139 83
+wait 500
+turn 115 68
+wait 500
+dest 7622
+wait 500
+turn 87 51
+say maneuver state 4
+wait 500
+state 4
+wait 500
+turn 62 37
+wait 500
+turn 50 29
+wait 500
+turn 38 22
+wait 500
+turn 27 16
+wait 500
+icon 13,192,-1,64,0
+turn 18 10
+wait 500
+turn 9 5
+wait 500
+turn 0 0
+wait 500
+icon 13,192,-1,64,0,65,-63
+wait 65
+road Boudreaux Rd
+wait 64
+icon 11,255
+wait 88
+next Grand Pkwy
+say maneuver state 1
+wait 51
+state 1
+wait 250
+turn 3476
+wait 250
+turn 3370
+wait 250
+dest 7315
+wait 250
+turn 3255
+wait 250
+turn 3136
+wait 250
+dest 7001
+wait 250
+turn 3018
+wait 250
+turn 2902
+wait 250
+turn 2780
+wait 250
+dest 6701
+wait 250
+turn 2651
+wait 250
+turn 2519
+wait 250
+dest 6395
+wait 250
+turn 2389
+wait 250
+turn 2275
+wait 250
+turn 2172
+wait 250
+dest 6080
+wait 250
+turn 2060
+wait 250
+turn 1947
+wait 250
+turn 1841
+wait 250
+dest 5771
+wait 250
+turn 1741
+wait 250
+turn 1635
+wait 250
+turn 1535
+wait 250
+dest 5471
+wait 250
+turn 1470
+wait 250
+turn 1456
+wait 250
+turn 1436
+wait 250
+turn 1378
+wait 250
+turn 1351
+wait 250
+turn 1341
+wait 250
+turn 1333
+wait 250
+turn 1305
+wait 250
+turn 1267
+wait 250
+turn 1227
+wait 250
+turn 1209
+wait 250
+dest 5171
+wait 250
+turn 1200
+wait 250
+turn 1159
+wait 250
+turn 1100
+wait 250
+turn 1020
+wait 250
+turn 943
+wait 250
+dest 4865
+wait 250
+turn 859
+wait 250
+turn 801
+wait 250
+turn 789
+wait 250
+turn 776
+wait 250
+turn 732
+wait 250
+turn 671
+wait 250
+turn 640
+wait 250
+turn 622
+wait 250
+turn 604
+wait 250
+dest 4564
+wait 250
+turn 592
+wait 250
+turn 585
+wait 250
+turn 554
+wait 250
+turn 512
+wait 250
+turn 492
+wait 250
+turn 459
+wait 250
+turn 443
+wait 250
+icon 13,64,-1,0,-64,-63
+say maneuver state 3
+wait 59
+state 3
+wait 500
+turn 414 247
+wait 500
+turn 395 235
+wait 500
+turn 380 226
+wait 500
+turn 368 219
+wait 500
+turn 362 216
+wait 500
+turn 360 214
+wait 500
+turn 357 213
+wait 500
+turn 353 210
+wait 500
+turn 348 207
+wait 500
+turn 344 205
+wait 500
+turn 341 203
+wait 500
+turn 338 201
+wait 500
+turn 334 199
+wait 500
+turn 331 197
+wait 500
+turn 326 194
+wait 500
+turn 323 192
+wait 500
+turn 321 191
+wait 500
+turn 318 189
+wait 500
+turn 314 187
+wait 500
+turn 309 184
+wait 500
+turn 300 179
+dest 4264
+wait 500
+turn 289 172
+wait 500
+turn 278 166
+wait 500
+turn 266 158
+wait 500
+turn 253 151
+wait 500
+turn 238 142
+wait 500
+turn 222 132
+wait 500
+turn 207 123
+wait 500
+turn 187 111
+wait 500
+turn 175 104
+wait 500
+turn 162 96
+wait 500
+turn 154 91
+wait 500
+turn 142 84
+wait 500
+turn 124 74
+wait 500
+turn 104 62
+wait 500
+turn 83 49
+wait 500
+icon 13,64,-1,0,-64
+wait 119
+road Gleannloch Forest Dr
+wait 500
+turn 66 39
+wait 500
+turn 60 35
+wait 500
+turn 58 34
+wait 500
+turn 55 32
+wait 500
+turn 52 31
+wait 500
+turn 46 27
+wait 500
+turn 39 23
+say maneuver state 4
+state 4
+wait 500
+turn 30 17
+wait 500
+turn 21 12
+wait 500
+turn 13 7
+wait 500
+turn 3 1
+wait 500
+turn 0 0
+dest 3958
+wait 500
+icon 13,64,-1,0,-64,65,-63
+wait 85
+road Grand Pkwy
+wait 79
+icon 11,255
+next FM 2920 Rd
+say maneuver state 1
+wait 52
+state 1
+wait 250
+turn 3173
+wait 250
+turn 3107
+say stock replay end, repeating in 5 s
+wait 5000
+loop

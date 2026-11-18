@@ -3,10 +3,20 @@
 Work-in-progress port of this project's CarPlay AltScreen to an Audi TT 8S.
 Modified from the MU1438 code in this repository (GPL-3.0), November 2026.
 
-> **Status: not tested on a car.** Nothing here has been installed or run on a
-> head unit yet. So far it has only been checked offline against one firmware
-> image. It modifies system files on the head unit and can stop CarPlay working.
-> Do not install it on any other firmware.
+> **Status: works on one car (US TT, MU1462).** The CarPlay map (Apple and
+> Google Maps) shows on the Virtual Cockpit map tab, follows the large/small
+> view, and zooms with the steering wheel. Turn-by-turn guidance on the cockpit
+> is still in progress. It modifies system files on the head unit and can stop
+> CarPlay working. Do not install it on any other firmware.
+
+**How it was done, and every dead end: [JOURNAL.md](JOURNAL.md).**
+
+| Folder | Contents |
+|---|---|
+| `package/` | Installer (`altscreen-mu1462-install.sh`), `tt-zoom.sh`, Sport renderer switch, status and preset helpers |
+| `hmi/` | Source of `tt-zoom.jar` (zoom, Sport marker, turn-by-turn feed, cockpit drawing) and its build tools |
+| `kit/` | `tt.sh` toolkit and parked-test scripts |
+| `scripts/` | Firmware analysis and patch tools (run against your own firmware copy) |
 
 No firmware is included. Stock Audi/Harman files, converted HMI jars and patched
 copies of stock executables must never be committed to this repository.
@@ -37,10 +47,7 @@ Offline checks: all 47 symbols the hook resolves exist in the MU1462
 
 ## Still to do
 
-- Run the installer's check mode, then the native hook, on a car.
-- Rewrite `ClusterGate` for terminal 0 and the TT map contexts, including the
-  type 4 `+79` variants, and switch to context 901.
-- Tune the map's safe area for the TT layouts.
+See [JOURNAL.md, section 13](JOURNAL.md#13-open-items).
 
 ## Rebuilding from your own firmware
 
@@ -56,6 +63,9 @@ your files:
 | `contexts.py` | Turn `javap` output of `defineContexts` into a context table |
 | `patch_dio_mu1462.py` | Create the hook-first `dio_manager` |
 | `assemble.py` | Assemble the stage 1 payload |
+| `mkrt.py` | Build the Sport-shift `cluster_runtime` (needs capstone) |
+| `jarcheck.py` | List stock classes a jar replaces and references it cannot resolve |
+| `sumnav.py`, `mkreplay.py` | Summarise a NavSpy log; turn one into a parked replay script |
 
 `assemble.py` expects the scratch layout used during development, so adjust its
 paths for your setup.

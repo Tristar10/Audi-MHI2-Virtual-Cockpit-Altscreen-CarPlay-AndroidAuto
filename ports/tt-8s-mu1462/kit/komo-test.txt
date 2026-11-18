@@ -1,0 +1,43 @@
+# KOMO guidance-view test 2 (tt-zoom v18): try each nav-engine guidance mode, then the HMI-controlled style.
+# Every step has its own street name, so a photo of the banner tells which step drew it.
+say komo test 2 start
+active 1
+road TX-249 N/Tomball Pkwy
+next Zulu Rd
+icon 13,64,-1,0,-64
+state 3
+dest 5000
+eta 900
+turn 300 180
+wait 4000
+say M0: rgsel 0 (RGI arrow mode), LEFT, Mode0 Arrow St
+rgsel 0
+rie info 13,64;in 900 ft;Mode0 Arrow St;;
+turn 280 170
+wait 15000
+say M1: rgsel 1 (KDK mode), RIGHT, Mode1 Kdk St
+rgsel 1
+rie info 13,192;in 800 ft;Mode1 Kdk St;;
+turn 250 150
+wait 15000
+say M2: rgsel 2 (compass mode), U-TURN, Mode2 Compass St
+rgsel 2
+rie info 25,64;in 700 ft;Mode2 Compass St;;
+turn 220 130
+wait 15000
+say M3: rgsel 3 (map mode), EXIT RIGHT, Mode3 Map St
+rgsel 3
+rie info 15,192;in 600 ft;Mode3 Map St;249;12A
+turn 190 110
+wait 15000
+say S255: style 255 (HMI-controlled RGI) + rgsel 0, LEFT, Style255 St
+style 255
+rgsel 0
+rie info 13,64;in 500 ft;Style255 St;;
+turn 160 95
+wait 15000
+say back to style 3, stock follow info
+style 3
+rie follow
+wait 6000
+loop

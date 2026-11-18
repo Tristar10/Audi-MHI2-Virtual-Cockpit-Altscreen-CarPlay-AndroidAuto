@@ -1,0 +1,278 @@
+# TT 8S (MU1462) port: how it works, and what did not
+
+This is a record of how the AltScreen CarPlay map was brought to the Audi TT 8S
+Virtual Cockpit (MHI2_US_AU43x_P5180, MU1462, G24), and of the turn-by-turn
+(RGI) work that followed. It lists the dead ends too, with the evidence for
+each, so nobody has to repeat them.
+
+Written November 2026. Everything described as "works" was checked on one car
+(US TT, MU1462). Nothing here has been tried on other firmware.
+
+## Contents
+
+1. [Status](#1-status)
+2. [How the TT differs from the MU1438 cars](#2-how-the-tt-differs-from-the-mu1438-cars)
+3. [Components](#3-components)
+4. [CarPlay map on the cockpit](#4-carplay-map-on-the-cockpit)
+5. [Sport layout (small view)](#5-sport-layout-small-view)
+6. [Steering-wheel zoom](#6-steering-wheel-zoom)
+7. [HMI patching (tt-zoom.jar)](#7-hmi-patching-tt-zoomjar)
+8. [Turn-by-turn: getting the iPhone data](#8-turn-by-turn-getting-the-iphone-data)
+9. [Turn-by-turn: getting it on screen](#9-turn-by-turn-getting-it-on-screen)
+10. [Drawing our own guidance (current work)](#10-drawing-our-own-guidance-current-work)
+11. [Build, test kit and workflow](#11-build-test-kit-and-workflow)
+12. [Third-party code and what is not in this repository](#12-third-party-code-and-what-is-not-in-this-repository)
+13. [Open items](#13-open-items)
+
+## 1. Status
+
+| Feature | State | Notes |
+|---|---|---|
+| CarPlay map (Apple/Google Maps) on the cockpit map tab | Works | Switches automatically with the map tab |
+| Map window tuned for the TT | Works | Hook safe-area preset `h320` |
+| Sport layout (small view) re-centring | Works | Picture shifted 453 px in `cluster_runtime` |
+| Steering-wheel scroll zoom on the CarPlay map | Works | `tt-zoom.jar` (ZoomGate) |
+| iPhone turn-by-turn data reaching the head unit | Works | chefranov hook + our `RgdBus` listener |
+| Turn-by-turn shown on the cockpit | In progress | Stock displays ruled out (section 9); own drawing started (section 10) |
+
+## 2. How the TT differs from the MU1438 cars
+
+- **One display.** The TT has no centre screen: everything is drawn on display 0,
+  HMI terminal `main`, 1440x540 (1440x542 in some places). The cockpit is the
+  head unit's own picture.
+- **"MMI-Kombi" variant.** `Util.isClusterMMI()` is true (`getScreenRes() == 4`).
+  Much of the navigation code takes MMI-Kombi branches:
+  - `FunctionListNaviEvo.initVariantMMIKombi` switches off BAP NavSD functions
+    23 (ManeuverDescriptor), 24 (LaneGuidance), 39 (ActiveRGType) and 49 (ExitView).
+    The cockpit therefore cannot receive a turn arrow or lanes over BAP the way
+    MHI2Q cluster cars do.
+  - `ClusterViewMode.refreshViewMode` returns early; map-tab switching is decided
+    in the HMI screens.
+- **Contexts.** The stock map is context 10 on terminal 0 (classic and sport);
+  CarPlay full screen is context 78.
+- **Video output.** NvSS output device 0 (`NVSS_VIDEO_OUTPUT_DEVICE=0`), not 1.
+- **Firewall.** TCP 6031 on `carplay0` is blocked by the stock rules.
+
+## 3. Components
+
+| Piece | Where | Role |
+|---|---|---|
+| `libaltscreen111.so` | project hook, loaded first by `dio_manager` | CarPlay alternate-screen session, safe area, zoom datagrams |
+| `cluster_runtime` | patched build of the project's renderer | Draws the CarPlay cluster stream with NvSS on output 0; Sport crop shift |
+| `cluster_supervisor.sh` | generated from the stock script | Declares context 901 (layers 16 and 60) so the MMI layer stays above the map |
+| `tt-zoom.jar` | HMI jar directory | Our Java: zoom, Sport marker, turn-by-turn feed, logging, drawing (built from `hmi/`) |
+| `librgd_hook.so` | chefranov, not distributed | LD_PRELOAD into `mm-ipod`; asks the iPhone for route guidance |
+| `package/` | this repo | Installers and helper scripts |
+| `kit/` | this repo | `tt.sh` toolkit and parked-test scripts |
+
+## 4. CarPlay map on the cockpit
+
+Stage 1 (native hook only) is described in [README.md](README.md). On top of it:
+
+- **Safe area.** iOS lays the map out inside the safe area the hook reports.
+  Several presets were built and compared on the car (`package/safe-preset.sh`
+  switches between them). `h320` fits the TT classic window best.
+- **Supervisor.** The final supervisor is the 4776-byte version
+  (`package/sup-update.sh` installs it alone).
+- **Package.** `package/altscreen-mu1462-install.sh` (`--check`, `--install`,
+  `--restore`, pinned to MU1462 hashes) installs hook, renderer and supervisor
+  and keeps a backup under `/mnt/app/root/altscreen-backups/`.
+  `package/status.sh` shows what is on flash without changing anything.
+
+## 5. Sport layout (small view)
+
+What the user calls switching Classic/Sport is the cockpit's large/small view
+size; the skin itself stays 1 (Sport) on this car.
+
+| Attempt | Result |
+|---|---|
+| Hook preset `auto`: switch only the safe area when the view changes | Failed. iOS accepted `updateViewArea` (status 0) but Apple and Google Maps did not re-layout |
+| Hook preset `auto2`: switch to view 2 with a 720-wide view area | Failed, same reason |
+| Hook `DisplayManagerEvo.setupKDKBackground` / terminal `setSkin` to detect the change | Runs only once at start-up |
+| Hook `DSICarTimeUnitsLanguageManager.updateSkin` | Also fires only once (skin never changes) |
+| **Leave iOS alone; shift the picture in `cluster_runtime`** (as yuedizhibo's MHI2Q AltScreen does for B9 Sport) | **Works** |
+| **Detect the size change via static `AnimationMIB2HighSport.setViewSize(eal, layout, small)`** | **Works** (Apple and Google Maps) |
+
+How it works: `tt-zoom.jar` creates `/tmp/mu1438-cluster-sport` in the small
+view and deletes it in the large view. The patched renderer (built by
+`scripts/mkrt.py`) re-reads the decoder attributes every 8 frames and, while the
+file exists, crops the source at x = 453: crop (453,0,987,540) drawn at
+(0,0,987,540). NvSSVideoSetAttribs layout used: byte 8 = 1; bytes 12–24 source
+crop x,y,w,h; bytes 28–40 screen rectangle; byte 60 = 1, byte 61 = 0.
+
+## 6. Steering-wheel zoom
+
+On the TT the wheel's map zoom arrives as `AbstractGUI.increment/decrement`
+(gesture scale id 400898) and `CombiBAPListener.setMapScale`. `ZoomGate` checks
+whether the CarPlay renderer is drawing (its heartbeat file
+`/tmp/mu1438-cluster-active` is fresh). If so, the step goes to the hook as an
+`MZ01` UDP datagram and the stock map is left alone; otherwise the stock code
+runs. CarPlay's zoom direction is the reverse of the stock scale direction
+(`/tmp/tt-zoom-invert` flips it). Every decision is logged to `/tmp/tt-zoom.log`.
+
+## 7. HMI patching (tt-zoom.jar)
+
+The jar goes into `/mnt/app/eso/hmi/lsd/jars/`, which the HMI puts ahead of
+`lsd.jxe`, so classes in it override stock ones. Nothing stock on flash is
+replaced, and removing the jar restores stock behaviour.
+
+- Stock classes are taken from `lsd.jxe` converted with jxe2jar, patched with
+  ASM (`hmi/tools/PatchZoom.java`: small hooks inserted at method starts or
+  around single calls) and rewritten to class version 46.
+- **What survived conversion on the car:** CombiBAPListener, AbstractGUI,
+  DisplayManagerEvo, DSICarTimeUnitsLanguageManager, AnimationMIB2HighSport,
+  ClusterService, ClusterViewMode, KOMOService (all small, version 46).
+- **What broke:** overriding `map/Context` (version 49, 57 KB) together with
+  `map/instances/MapMain` left navigation stuck at 11 % on start-up. Removing
+  the jar recovered it. Lesson: ASM verification does not prove a converted
+  class runs on J9. Add one override at a time.
+- **Rules for our own classes** (enforced by PatchZoom and `checklib.py`):
+  Java 1.4 class library only (StringBuffer, no StringBuilder, no autoboxing,
+  no generics); no string `+` concatenation (it compiles to StringBuilder); no
+  class literals (`Foo.class` needs version 49); no anonymous or inner classes
+  that capture variables (synthetic members); every `java.*` call must exist in
+  the car's library.
+
+## 8. Turn-by-turn: getting the iPhone data
+
+- chefranov's `librgd_hook.so` (unmodified, his licence does not allow
+  redistribution) is LD_PRELOADed into `mm-ipod` (`package/rgd-test.sh`).
+  `mm-ipod` restarts on every iPhone plug-in, so the hook reloads each time.
+- The hook patches iAP2 Identify (adds RouteGuidance 0x001E, component 0x0010),
+  but it only sends StartRouteGuidanceUpdates (0x5200) while a Java listener is
+  connected on 127.0.0.1:19810.
+- Our listener `RgdBus` speaks luka's CPHB protocol: 16-byte big-endian header
+  (magic `CPHB`, seq, u16 type, u8 flags, u8 reserved, u32 length), then
+  `key:type:value` text lines for `EVT_RGD_UPDATE` (0x0020). Updates are deltas;
+  `RgdBus` keeps the merged state and writes the latest to `/tmp/tt-rgd.txt`.
+- Fields seen: route state, distances (destination and maneuver), ETA,
+  destination name, maneuver list (`mN_type`, angles, junction type, driving
+  side, road names) and, from Google Maps, full lane guidance
+  (`lgN_lane_directions`, `lgN_lane_status`). iOS sends a short route_state 0
+  about every 30 s, so "route off" is only accepted after 6 s.
+- iAP2 maneuver types are mapped with luka's `ManeuverMapper` (GPL-3.0, copied
+  unchanged except the package), plus TT stock overrides: motorway exits are
+  EXIT_RIGHT/LEFT `{15,192}`/`{16,64}`, keep left/right is FORK_2 `{19,64}`/`{19,192}`.
+
+## 9. Turn-by-turn: getting it on screen
+
+### 9.1 Attempts
+
+| Version | What it did | Result on the car | Lesson |
+|---|---|---|---|
+| v10 | Fed the stock BAP NavSD path (CombiBAPListener setters) | BAP received everything; cockpit showed nothing | The TT cockpit does not draw BAP navigation |
+| chefranov / tehfalcon stack | Installed his full stack (`mhi2-nar-carplay-maps`) | Ran, showed nothing; installer gate also fails on pdksh (`"$@"` under `set -u`) | It draws into cluster context 80 / displayable 98, which G24 does not have. Removed |
+| v12 | Fed ClusterService (COMBI_NAV_* models: RGI icon, distance, ETA, streets); reported "route active" | A guidance banner appeared on every tab with a straight arrow and the correct distance; the map tab lost the CarPlay map | Explained later (9.3): the banner is the nav engine's view; distance came from HMI data, the arrow from its (empty) route |
+| v13/v14 | Live modes (near/noactive/pad), stock-shaped icons, NavSpy logging, parked playback | Nothing new on screen | Logging made the next steps possible |
+| v15 | Exact stock sequence (states 1–4, bargraph, junction arms) into the models; KDK blocked to keep the map | Parked replay of a recorded stock-nav stream showed **nothing** | The COMBI_NAV_* models are not drawn on the TT at all |
+| v16 | KDK allowed again; pushed maneuver RouteInfoElements into KOMOService four ways; logged the nav engine's answers | Nothing | Nav engine reports its view not visible without its own route |
+| v17 | Forced the KOMO view visible while a CarPlay route is active | **Blank banner appeared** on the cockpit, no content | Visibility can be forced; content cannot |
+| v18 | Cycled the nav engine's RG modes (RGI, KDK, compass, map) and the HMI-controlled view style | Banner stayed blank; the engine never answered setRgSelect | The nav engine draws the arrow/junction only from its own route |
+
+### 9.2 Recorded stock behaviour (presentation mode and a real drive, NavSpy)
+
+- RGI icon stream: `{mainElement, direction 0–255 unsigned, side streets as signed bytes}`.
+  Examples: left turn `{13,64,-1,0,-64}`, right turn `{13,192,-1,64,0}`,
+  motorway exit `{15,192,-1}`, fork `{19,64}`, follow road `{11,255}`,
+  prepare `{12,dir}`, calculating `{9,x}`, off-road `{6,dir}`, recalculating `{10,dir}`.
+- Maneuver states (updateBapManeuverState): 1 follow, 2 prepare (~1250 m city,
+  ~3200 m motorway), 3 approach (~430 m / ~1750 m, bargraph starts), 4 at the
+  turn (~100 m / ~150 m).
+- Bargraph: 255 × distance / approach-start distance, counting down to 0.
+- `updateTurnToStreet` ignores its boolean; the turn-to label shows only when the
+  street is non-empty **and** the bargraph is on.
+- Stock nav without a route still calls `updateRgActive(false)` / `updateRGIString(null)`
+  now and then; anything we feed must be re-sent (v15 re-sends within 2 s).
+
+### 9.3 What the TT actually shows, and why iPhone turns cannot use it
+
+- The cockpit guidance banner (and the junction picture near turns) is the nav
+  engine's KOMO/KDK view, a separate displayable (20) that the HMI shows when
+  `ClusterKDKHandler` sees `komoViewEnabled && komoViewVisible && rgActive`.
+  View style on MMI-Kombi: `KOMOCaller.getKomoViewStyle()` = 3. Layout files:
+  `guidanceview_*_293x323.xml` and `KDKConfig_293x323.kdx` on `app.img`.
+- On the map tab this view replaces the CarPlay map. That was the v12 "map
+  disappears" effect.
+- The HMI feeds the view "nav info" (`DSIKOMONavInfo`: distance to maneuver,
+  ETA, current and turn-to street, distance to destination) and RouteInfoElements.
+  The distance text does come from the HMI. That is why v12 showed the right
+  distance. `ClusterService.refreshDistanceToNextManeuverMOST` marks it invalid
+  while the bargraph is on, which is why the v17/v18 tests (always sent with a
+  bargraph) showed none.
+- The arrow and junction picture come from the nav engine's own route: it zooms
+  into its own map data. It reports the view as not visible whenever it has no
+  route, and it ignored every maneuver element and mode switch we sent.
+- MHI2Q cluster cars are different: their cluster is a separate computer that
+  draws the turn display from BAP data, which is why luka's approach works there.
+
+## 10. Drawing our own guidance (current work)
+
+The cockpit is the HMI's main terminal, and its scene graph is built through
+`EALManager` (e.solutions engine layer). We can add our own nodes there:
+
+- Group nodes: `createNode3D(parent, name, w, h)`, then `setPosition(x, y, 0)`.
+- Images from our own pixels:
+  `createTextureDescription(ByteBuffer.allocateDirect(w*h*4) RGBA, w, h, 6 /*RGBA8888*/, null, key)`
+  then `createImage3D(parent, name, desc, 0, true, owner)`.
+- Text in the HMI fonts: `HMITerminalImpl.fontLoader.getFont(size, style)` and
+  `createText3D(parent, name, text, font)`.
+- Line drawing: `createQuickDrawNode3D` (polyline nodes).
+- Parents: `getPartialPopupsFrontNode()` (above all screens) or `getScreensNode()`.
+  Call `fireRenderEvent()` after changes.
+- All EAL work must run on the HMI event thread:
+  `terminal.getFramework().getHMIService().getEventDispatcher().postEvent(new RunnableEvent(job))`.
+- The EALManager is captured in the patched `AnimationMIB2HighSport.setViewSize`
+  (fallback: `CombiMapController.hmiService` via reflection).
+- Caution: an HMI class dump from a newer build differs from the car (no
+  `HMITerminal.getEventDispatcher`, no `EALManager.getFontLoader` on MU1462).
+  Always check APIs against your own converted `lsd.jxe`.
+
+**v19 result (parked):** our node is drawn on the cockpit, at each requested
+position, with our text label inside, but squashed to a thin white strip:
+width right, height a few pixels. A vertical scale inherited from the parent
+node is the leading suspect; next test.
+
+Plan: a hybrid. The stock banner keeps showing distance, ETA and streets (fed
+without the bargraph); our panel draws the turn arrow, and later lanes, from
+iPhone data on top of it.
+
+## 11. Build, test kit and workflow
+
+- **Build:** `hmi/tools/build.sh <tag>`: javac (`--release 8`), PatchZoom, VerifyZoom
+  (ASM verifier), `checklib.py` (every `java.*` call checked against the car's
+  class library), deterministic jar (`mkjar.py`). Paths to your own converted
+  jar, ASM and the car's java library are given as environment variables. The
+  resulting jar contains patched stock classes, so it is never committed.
+- **Toolkit:** `kit/tt.sh`. Copy the kit to `/tmp` and run `sh /tmp/tt.sh setup`
+  once; afterwards from the SSH login folder:
+  - `sh tt.sh report`: what is installed and running
+  - `sh tt.sh use vNN`: install a stored jar (sha-checked); restart the MMI
+  - `sh tt.sh play panel|komo|stock|arrows`, `sh tt.sh stop`: parked tests
+  - `sh tt.sh mode ...`, `sh tt.sh save`, `sh tt.sh remove`
+- **Parked tests instead of drives.** `RgiPlayer` plays `/tmp/tt-rgi-play.txt`
+  (wait / loop / say / feed commands / `panel ...`) and pauses the iPhone feed.
+  `kit/stock-replay.txt` was generated from a recorded stock drive
+  (`scripts/mkreplay.py`; `scripts/sumnav.py` summarises a NavSpy log).
+  Stock nav's presentation mode simulates a route while parked.
+- **Logs:** `/tmp/tt-rgd.log` (bus, feed, playback, panel; 256 KB + one old file),
+  `/tmp/tt-nav.log` (NavSpy: every ClusterService/KOMOService input and the nav
+  engine's answers), `/tmp/tt-zoom.log`, `/tmp/tt-rgd.txt`. `sh tt.sh save`
+  keeps them across MMI restarts in `/mnt/app/root/tt/logs/runN`.
+- SSH needs `-o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedAlgorithms=+ssh-rsa`;
+  scp needs `-O`. `/tmp` on the car is flat and wiped on MMI restart.
+
+## 12. Third-party code and what is not in this repository
+
+- `hmi/src/local/tt/ManeuverMapper.java`: luka-dev/mib2q-carplay-rgi, GPL-3.0, unchanged apart from the package.
+- CPHB bus protocol: from yuedizhibo/MHI2Q-CarPlay-AltScreen (GPL-3.0); `RgdBus` is our own implementation.
+- chefranov's `librgd_hook.so`: used unmodified on the car, **not** included (no redistribution rights).
+- Not included, by rule: firmware, converted HMI jars, `tt-zoom.jar` (it contains patched stock classes),
+  the patched `cluster_runtime`, the generated `cluster_supervisor.sh`, `dio_manager`.
+  Scripts here rebuild them from your own firmware copy.
+
+## 13. Open items
+
+- Fix the squashed panel (v19), then draw a real turn arrow, distance bar and lanes.
+- Banner field test: which nav-info fields (distance, ETA, streets) the stock banner shows when fed without the bargraph.
+- Decide how our panel and the stock banner share the map tab with the CarPlay map.
+- Refresh the installer package (`package/`) with the final jar.

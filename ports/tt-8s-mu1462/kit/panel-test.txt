@@ -1,0 +1,24 @@
+# Our own cockpit drawing, first test (tt-zoom v19): coloured boxes with a label, 10 s each.
+# Note which colours appear and where; that maps out the coordinate system.
+say panel test start
+panel info
+wait 2000
+say P1 RED box at 0,0 (front layer)
+panel show front 0 0 300 120 c00000 P1 RED 0,0
+wait 10000
+say P2 GREEN box at 400,150 (front layer)
+panel show front 400 150 300 120 00a000 P2 GREEN 400,150
+wait 10000
+say P3 BLUE box at 900,300 (front layer)
+panel show front 900 300 300 120 0040c0 P3 BLUE 900,300
+wait 10000
+say P4 MAGENTA box at -150,-60 (front layer, in case 0,0 is the centre)
+panel show front -150 -60 300 120 b000b0 P4 MAGENTA centre
+wait 10000
+say P5 ORANGE box at 400,150 (screens layer)
+panel show screens 400 150 300 120 d07000 P5 ORANGE screens
+wait 10000
+say panel hidden
+panel hide
+wait 4000
+loop
