@@ -277,6 +277,20 @@ off the right edge. In the small view it did not show at all: the car's own page
 - `sh tt.sh panel large|small X Y [SCALE]` writes `/tmp/tt-panel-pos`; position
   and scale apply at the next redraw, with no rebuild or restart.
 
+**v23 (user's layout, parked test pending):** before testing v22, the layout
+was changed to follow stock nav's two boxes:
+- Large view (map tab): a LEFT banner (top-left of the map: picture, distance,
+  exit number or street, lanes, bar) and a RIGHT banner (above the speedometer:
+  flag, distance to destination, arrival time). Google/Apple Maps label roads
+  on the map, so the banners stay small.
+- Small view (tach in the centre): one FULL panel on the right (stock banner spot,
+  banner enabled under it) with all of it: picture, bar, lanes, distance, exit and
+  street, destination row.
+- Exit numbers are not a separate iAP2 field here; `RgdBus.exitNumber` takes
+  the token after "exit" in the maneuver text ("Take exit 12A toward …" → 12A).
+- Live tuning keys: `sh tt.sh panel left|right|small X Y [SCALE]`.
+- Preview: [docs/panel-preview-v23.png](docs/panel-preview-v23.png).
+
 Offline previews of the panel: [docs/panel-preview.png](docs/panel-preview.png),
 [docs/panel-preview-lanes.png](docs/panel-preview-lanes.png), [docs/panel-preview-compact.png](docs/panel-preview-compact.png) (text there is
 rendered by the PC; the car uses its own fonts).

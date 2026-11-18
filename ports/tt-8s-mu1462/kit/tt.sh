@@ -16,6 +16,7 @@ V19=a549814352b72762f1639c0343eeab829f954aa2ff92e078d6fea40fd30fb4e1
 V20=146a39998585e62b59eff8e714c3e3e92271a15fb72530cd3aafddeb9000c44b
 V21=43a59e05a7b5f8821428d2410a1e96ee142bddfa063fcc02af981d827da47e09
 V22=1619db75cd413a614d28d17a646524cf3e51ea1492f971a29eb71452e739f763
+V23=74b71d9013d088ca8a38f6b035a75da15a1c00b519a53713299aee967b7056e7
 T=$K/altscreen-sha256
 
 say(){ echo "$*"; }
@@ -24,33 +25,33 @@ ro(){ sync; mount -ur /mnt/app 2>/dev/null; }
 which_jar(){
     h=$("$T" "$JAR" 2>/dev/null)
     case "$h" in
-        $V12) echo v12;; $V14) echo v14;; $V15) echo v15;; $V16) echo v16;; $V17) echo v17;; $V18) echo v18;; $V19) echo v19;; $V20) echo v20;; $V21) echo v21;; $V22) echo v22;; "") echo none;; *) echo "unknown ($h)";;
+        $V12) echo v12;; $V14) echo v14;; $V15) echo v15;; $V16) echo v16;; $V17) echo v17;; $V18) echo v18;; $V19) echo v19;; $V20) echo v20;; $V21) echo v21;; $V22) echo v22;; $V23) echo v23;; "") echo none;; *) echo "unknown ($h)";;
     esac
 }
 
 case "${1:-help}" in
 setup)
     # Run from /tmp after copying the kit there. Safe to run again for a kit update.
-    test -f /tmp/tt-zoom-v22.jar || { say 'Copy the kit files to /tmp first.'; exit 1; }
+    test -f /tmp/tt-zoom-v23.jar || { say 'Copy the kit files to /tmp first.'; exit 1; }
     rw
     mkdir -p "$K/logs"
-    for f in altscreen-sha256 tt-zoom-v22.jar stock-replay.txt catalogue.txt komo-test.txt panel-test.txt; do
+    for f in altscreen-sha256 tt-zoom-v23.jar stock-replay.txt catalogue.txt komo-test.txt panel-test.txt; do
         cp "/tmp/$f" "$K/$f" || { say "missing /tmp/$f"; ro; exit 1; }
     done
-    for f in tt-zoom-v12.jar tt-zoom-v14.jar tt-zoom-v15.jar tt-zoom-v16.jar tt-zoom-v17.jar tt-zoom-v18.jar tt-zoom-v19.jar tt-zoom-v20.jar tt-zoom-v21.jar; do
+    for f in tt-zoom-v12.jar tt-zoom-v14.jar tt-zoom-v15.jar tt-zoom-v16.jar tt-zoom-v17.jar tt-zoom-v18.jar tt-zoom-v19.jar tt-zoom-v20.jar tt-zoom-v21.jar tt-zoom-v22.jar; do
         test -f "/tmp/$f" && cp "/tmp/$f" "$K/$f"
     done
     cp /tmp/tt.sh /mnt/app/root/tt.sh
     chmod 755 "$T" /mnt/app/root/tt.sh
     ok=1
-    "$T" $V22 "$K/tt-zoom-v22.jar" || ok=0
+    "$T" $V23 "$K/tt-zoom-v23.jar" || ok=0
     ro
     if test $ok = 1; then say 'Kit installed. From now on just type:  sh tt.sh help'
     else say 'A kit file is damaged - copy the kit again and rerun setup.'; exit 1; fi
     ;;
 use)
     v=${2:-}
-    case "$v" in v12) h=$V12;; v14) h=$V14;; v15) h=$V15;; v16) h=$V16;; v17) h=$V17;; v18) h=$V18;; v19) h=$V19;; v20) h=$V20;; v21) h=$V21;; v22) h=$V22;; *) say 'Usage: sh tt.sh use v22   (or v21 ... v12)'; exit 2;; esac
+    case "$v" in v12) h=$V12;; v14) h=$V14;; v15) h=$V15;; v16) h=$V16;; v17) h=$V17;; v18) h=$V18;; v19) h=$V19;; v20) h=$V20;; v21) h=$V21;; v22) h=$V22;; v23) h=$V23;; *) say 'Usage: sh tt.sh use v23   (or v22 ... v12)'; exit 2;; esac
     test -f "$K/tt-zoom-$v.jar" || { say "$v is not in the kit on the car."; exit 1; }
     "$T" $h "$K/tt-zoom-$v.jar" || { say "Stored $v jar is damaged."; exit 1; }
     rw
@@ -91,17 +92,17 @@ panel)
     # Live position/size of our turn panel per view; read on every redraw (no restart).
     P=/tmp/tt-panel-pos
     case "${2:-}" in
-        large|small)
-            test -n "${4:-}" || { say 'Usage: sh tt.sh panel large|small X Y [SCALE]'; exit 2; }
+        left|right|small)
+            test -n "${4:-}" || { say 'Usage: sh tt.sh panel left|right|small X Y [SCALE]'; exit 2; }
             touch $P; grep -v "^$2 " $P > $P.new 2>/dev/null; echo "$2 $3 $4 ${5:-1}" >> $P.new; mv $P.new $P
             say "Panel $2 view: x=$3 y=$4 scale=${5:-1} (applies at the next update)";;
         reset) rm -f $P; say 'Panel position back to defaults.';;
-        show) cat $P 2>/dev/null || say '(defaults: large 1150 96 1, small 991 152 1)';;
-        *) say 'Usage: sh tt.sh panel large|small X Y [SCALE] | reset | show'; exit 2;;
+        show) cat $P 2>/dev/null || say '(defaults: left 30 64 1, right 1180 70 1, small 991 152 1)';;
+        *) say 'Usage: sh tt.sh panel left|right|small X Y [SCALE] | reset | show'; exit 2;;
     esac
     ;;
 report)
-    say "== jar: $(which_jar)    (v22 is the current one)"
+    say "== jar: $(which_jar)    (v23 is the current one)"
     say '== switches:'
     ls /tmp/tt-rgi-* 2>/dev/null || say '(none)'
     say '== iPhone and cockpit (last 8):'
@@ -126,11 +127,11 @@ save)
     ;;
 *)
     say 'sh tt.sh report              what is installed and what it is doing (paste this)'
-    say 'sh tt.sh use v22             switch version (v22 ... v12), then restart the MMI'
+    say 'sh tt.sh use v23             switch version (v23 ... v12), then restart the MMI'
     say 'sh tt.sh play panel|komo|stock  parked tests'
     say 'sh tt.sh play arrows | stop  arrow catalogue / stop playback'
     say 'sh tt.sh mode default|kdk|nopanel|noactive|nopad|off|on'
-    say 'sh tt.sh panel large|small X Y [S]  move/resize our turn panel live (reset | show)'
+    say 'sh tt.sh panel left|right|small X Y [S]  move/resize panels live (reset | show)'
     say 'sh tt.sh save                keep the logs across MMI restarts'
     say 'sh tt.sh remove              take tt-zoom.jar out (restart the MMI)'
     ;;

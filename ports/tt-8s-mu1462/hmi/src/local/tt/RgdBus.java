@@ -285,6 +285,7 @@ public final class RgdBus implements Runnable {
         int mState = 0;
         int bar = -1;
         String lanes = "-";
+        String exit = "";
         long now = System.currentTimeMillis();
         synchronized (STATE) {
             if (!fromBus && offSince < 0L && !wantOn && !lastOn && !RgiPlayer.playing()) {
@@ -355,6 +356,13 @@ public final class RgdBus implements Runnable {
             }
             if (first.length() > 0) {
                 lanes = laneSpec(first);
+                StringBuffer ep = new StringBuffer("m").append(first).append('_');
+                int eplen = ep.length();
+                exit = exitNumber(str(ep.append("name").toString()));
+                if (exit.length() == 0) {
+                    ep.setLength(eplen);
+                    exit = exitNumber(str(ep.append("after_road").toString()));
+                }
             }
             pad = !RGI_NOPAD.exists();
             declare = !RGI_NOACTIVE.exists();
@@ -389,7 +397,7 @@ public final class RgdBus implements Runnable {
         try {
             String result = TtRgi.update(on, declare, icon, mState, turn, bar, dest, eta, road, next);
             // Lanes only while approaching the turn, like stock.
-            TtPanel.live(on, icon, turn, bar, mState >= 3 ? lanes : "-", next);
+            TtPanel.live(on, icon, turn, bar, mState >= 3 ? lanes : "-", dest, eta, exit, next);
             if (result != null) {
                 log(result);
             }
@@ -529,6 +537,36 @@ public final class RgdBus implements Runnable {
             return b.toString();
         }
         return "-";
+    }
+
+    /**
+     * Exit number from maneuver text such as "Take exit 12A toward ..." or "Exit 245":
+     * the token after the word exit, if it starts with a digit. "" if none.
+     */
+    static String exitNumber(String text) {
+        if (text == null) {
+            return "";
+        }
+        String low = text.toLowerCase();
+        int from = 0;
+        while (true) {
+            int i = low.indexOf("exit", from);
+            if (i < 0) {
+                return "";
+            }
+            int j = i + 4;
+            while (j < text.length() && (text.charAt(j) == ' ' || text.charAt(j) == '#')) {
+                j++;
+            }
+            int k = j;
+            while (k < text.length() && k - j < 6 && Character.isLetterOrDigit(text.charAt(k))) {
+                k++;
+            }
+            if (k > j && Character.isDigit(text.charAt(j))) {
+                return text.substring(j, k).toUpperCase();
+            }
+            from = i + 4;
+        }
     }
 
     private static String[] split(String s, char sep) {

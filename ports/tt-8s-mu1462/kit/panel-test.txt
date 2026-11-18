@@ -1,165 +1,146 @@
-# Turn panel demo (tt-zoom v21): our own drawing at the stock banner spot, parked.
-# Each maneuver counts down with the progress bar; lanes appear on the approach.
+# Turn panel demo (tt-zoom v23), parked. Large view: LEFT banner (maneuver) + RIGHT banner (destination).
+# Small view: one full panel on the right. Switch views during the demo to see both.
 say turn panel demo start
 # Declare a route so the small view shows the stock banner spot (our panel is drawn on it).
 active 1
-panel turn 11,255 3200 -1 - Grand Pkwy
+panel turn 11,255 3200 -1 - 9000 780 - Grand Pkwy
 wait 4000
-say Alpha St (left, lane 1)
-panel turn 13,64,-1,0,-64 260 255 - Alpha St (left, lane 1)
+say Alpha St
+panel turn 13,64,-1,0,-64 260 255 - 8968 780 - Alpha St
 wait 1200
-panel turn 13,64,-1,0,-64 227 222 - Alpha St (left, lane 1)
+panel turn 13,64,-1,0,-64 227 222 - 8936 780 - Alpha St
 wait 1200
-panel turn 13,64,-1,0,-64 195 191 -90:2/0:0/0:0/90:0 Alpha St (left, lane 1)
+panel turn 13,64,-1,0,-64 195 191 -90:2/0:0/0:0/90:0 8904 780 - Alpha St
 wait 1200
-panel turn 13,64,-1,0,-64 162 158 -90:2/0:0/0:0/90:0 Alpha St (left, lane 1)
+panel turn 13,64,-1,0,-64 162 158 -90:2/0:0/0:0/90:0 8872 780 - Alpha St
 wait 1200
-panel turn 13,64,-1,0,-64 130 127 -90:2/0:0/0:0/90:0 Alpha St (left, lane 1)
+panel turn 13,64,-1,0,-64 130 127 -90:2/0:0/0:0/90:0 8840 780 - Alpha St
 wait 1200
-panel turn 13,64,-1,0,-64 97 95 -90:2/0:0/0:0/90:0 Alpha St (left, lane 1)
+panel turn 13,64,-1,0,-64 97 95 -90:2/0:0/0:0/90:0 8808 780 - Alpha St
 wait 1200
-panel turn 13,64,-1,0,-64 65 63 -90:2/0:0/0:0/90:0 Alpha St (left, lane 1)
+panel turn 13,64,-1,0,-64 65 63 -90:2/0:0/0:0/90:0 8776 780 - Alpha St
 wait 1200
-panel turn 13,64,-1,0,-64 32 31 -90:2/0:0/0:0/90:0 Alpha St (left, lane 1)
+panel turn 13,64,-1,0,-64 32 31 -90:2/0:0/0:0/90:0 8744 780 - Alpha St
 wait 1200
-panel turn 13,64,-1,0,-64 0 0 -90:2/0:0/0:0/90:0 Alpha St (left, lane 1)
+panel turn 13,64,-1,0,-64 0 0 -90:2/0:0/0:0/90:0 8712 780 - Alpha St
 wait 1200
-say Bravo St (right, 2 right lanes)
-panel turn 13,192,-1,64,0 250 255 - Bravo St (right, 2 right lanes)
+say Bravo St
+panel turn 13,192,-1,64,0 250 255 - 8681 780 - Bravo St
 wait 1200
-panel turn 13,192,-1,64,0 218 222 - Bravo St (right, 2 right lanes)
+panel turn 13,192,-1,64,0 218 222 - 8650 780 - Bravo St
 wait 1200
-panel turn 13,192,-1,64,0 187 190 -90:0/0:0/0,90:1/90:2 Bravo St (right, 2 right lanes)
+panel turn 13,192,-1,64,0 187 190 -90:0/0:0/0,90:1/90:2 8619 780 - Bravo St
 wait 1200
-panel turn 13,192,-1,64,0 156 159 -90:0/0:0/0,90:1/90:2 Bravo St (right, 2 right lanes)
+panel turn 13,192,-1,64,0 156 159 -90:0/0:0/0,90:1/90:2 8588 780 - Bravo St
 wait 1200
-panel turn 13,192,-1,64,0 125 127 -90:0/0:0/0,90:1/90:2 Bravo St (right, 2 right lanes)
+panel turn 13,192,-1,64,0 125 127 -90:0/0:0/0,90:1/90:2 8557 780 - Bravo St
 wait 1200
-panel turn 13,192,-1,64,0 93 94 -90:0/0:0/0,90:1/90:2 Bravo St (right, 2 right lanes)
+panel turn 13,192,-1,64,0 93 94 -90:0/0:0/0,90:1/90:2 8526 780 - Bravo St
 wait 1200
-panel turn 13,192,-1,64,0 62 63 -90:0/0:0/0,90:1/90:2 Bravo St (right, 2 right lanes)
+panel turn 13,192,-1,64,0 62 63 -90:0/0:0/0,90:1/90:2 8495 780 - Bravo St
 wait 1200
-panel turn 13,192,-1,64,0 31 31 -90:0/0:0/0,90:1/90:2 Bravo St (right, 2 right lanes)
+panel turn 13,192,-1,64,0 31 31 -90:0/0:0/0,90:1/90:2 8464 780 - Bravo St
 wait 1200
-panel turn 13,192,-1,64,0 0 0 -90:0/0:0/0,90:1/90:2 Bravo St (right, 2 right lanes)
+panel turn 13,192,-1,64,0 0 0 -90:0/0:0/0,90:1/90:2 8433 780 - Bravo St
 wait 1200
-say Charlie Rd (slight right)
-panel turn 13,224,-1,0 300 255 - Charlie Rd (slight right)
+say Spring Cypress Rd
+panel turn 15,192,-1 1700 255 - 8221 780 12A Spring Cypress Rd
 wait 1200
-panel turn 13,224,-1,0 262 222 - Charlie Rd (slight right)
+panel turn 15,192,-1 1487 223 - 8009 780 12A Spring Cypress Rd
 wait 1200
-panel turn 13,224,-1,0 225 191 0:0/0:0/45,0:0/45:2 Charlie Rd (slight right)
+panel turn 15,192,-1 1275 191 0:0/0:0/0:0/0,45:1/45:2 7797 780 12A Spring Cypress Rd
 wait 1200
-panel turn 13,224,-1,0 187 158 0:0/0:0/45,0:0/45:2 Charlie Rd (slight right)
+panel turn 15,192,-1 1062 159 0:0/0:0/0:0/0,45:1/45:2 7585 780 12A Spring Cypress Rd
 wait 1200
-panel turn 13,224,-1,0 150 127 0:0/0:0/45,0:0/45:2 Charlie Rd (slight right)
+panel turn 15,192,-1 850 127 0:0/0:0/0:0/0,45:1/45:2 7373 780 12A Spring Cypress Rd
 wait 1200
-panel turn 13,224,-1,0 112 95 0:0/0:0/45,0:0/45:2 Charlie Rd (slight right)
+panel turn 15,192,-1 637 95 0:0/0:0/0:0/0,45:1/45:2 7161 780 12A Spring Cypress Rd
 wait 1200
-panel turn 13,224,-1,0 75 63 0:0/0:0/45,0:0/45:2 Charlie Rd (slight right)
+panel turn 15,192,-1 425 63 0:0/0:0/0:0/0,45:1/45:2 6949 780 12A Spring Cypress Rd
 wait 1200
-panel turn 13,224,-1,0 37 31 0:0/0:0/45,0:0/45:2 Charlie Rd (slight right)
+panel turn 15,192,-1 212 31 0:0/0:0/0:0/0,45:1/45:2 6737 780 12A Spring Cypress Rd
 wait 1200
-panel turn 13,224,-1,0 0 0 0:0/0:0/45,0:0/45:2 Charlie Rd (slight right)
+panel turn 15,192,-1 0 0 0:0/0:0/0:0/0,45:1/45:2 6525 780 12A Spring Cypress Rd
 wait 1200
-say Exit 12A (motorway exit)
-panel turn 15,192,-1 1700 255 - Exit 12A (motorway exit)
+say TX-249 N
+panel turn 19,64 500 255 - 6463 780 - TX-249 N
 wait 1200
-panel turn 15,192,-1 1487 223 - Exit 12A (motorway exit)
+panel turn 19,64 437 222 - 6401 780 - TX-249 N
 wait 1200
-panel turn 15,192,-1 1275 191 0:0/0:0/0:0/0,45:1/45:2 Exit 12A (motorway exit)
+panel turn 19,64 375 191 0:2/0:2/0,45:0/45:0 6339 780 - TX-249 N
 wait 1200
-panel turn 15,192,-1 1062 159 0:0/0:0/0:0/0,45:1/45:2 Exit 12A (motorway exit)
+panel turn 19,64 312 159 0:2/0:2/0,45:0/45:0 6277 780 - TX-249 N
 wait 1200
-panel turn 15,192,-1 850 127 0:0/0:0/0:0/0,45:1/45:2 Exit 12A (motorway exit)
+panel turn 19,64 250 127 0:2/0:2/0,45:0/45:0 6215 780 - TX-249 N
 wait 1200
-panel turn 15,192,-1 637 95 0:0/0:0/0:0/0,45:1/45:2 Exit 12A (motorway exit)
+panel turn 19,64 187 95 0:2/0:2/0,45:0/45:0 6153 780 - TX-249 N
 wait 1200
-panel turn 15,192,-1 425 63 0:0/0:0/0:0/0,45:1/45:2 Exit 12A (motorway exit)
+panel turn 19,64 125 63 0:2/0:2/0,45:0/45:0 6091 780 - TX-249 N
 wait 1200
-panel turn 15,192,-1 212 31 0:0/0:0/0:0/0,45:1/45:2 Exit 12A (motorway exit)
+panel turn 19,64 62 31 0:2/0:2/0,45:0/45:0 6029 780 - TX-249 N
 wait 1200
-panel turn 15,192,-1 0 0 0:0/0:0/0:0/0,45:1/45:2 Exit 12A (motorway exit)
+panel turn 19,64 0 0 0:2/0:2/0,45:0/45:0 5967 780 - TX-249 N
 wait 1200
-say TX-249 N (keep left)
-panel turn 19,64 500 255 - TX-249 N (keep left)
+say Delta Blvd
+panel turn 25,64 200 255 - 5942 780 - Delta Blvd
 wait 1200
-panel turn 19,64 437 222 - TX-249 N (keep left)
+panel turn 25,64 175 223 - 5917 780 - Delta Blvd
 wait 1200
-panel turn 19,64 375 191 0:2/0:2/0,45:0/45:0 TX-249 N (keep left)
+panel turn 25,64 150 191 - 5892 780 - Delta Blvd
 wait 1200
-panel turn 19,64 312 159 0:2/0:2/0,45:0/45:0 TX-249 N (keep left)
+panel turn 25,64 125 159 - 5867 780 - Delta Blvd
 wait 1200
-panel turn 19,64 250 127 0:2/0:2/0,45:0/45:0 TX-249 N (keep left)
+panel turn 25,64 100 127 - 5842 780 - Delta Blvd
 wait 1200
-panel turn 19,64 187 95 0:2/0:2/0,45:0/45:0 TX-249 N (keep left)
+panel turn 25,64 75 95 - 5817 780 - Delta Blvd
 wait 1200
-panel turn 19,64 125 63 0:2/0:2/0,45:0/45:0 TX-249 N (keep left)
+panel turn 25,64 50 63 - 5792 780 - Delta Blvd
 wait 1200
-panel turn 19,64 62 31 0:2/0:2/0,45:0/45:0 TX-249 N (keep left)
+panel turn 25,64 25 31 - 5767 780 - Delta Blvd
 wait 1200
-panel turn 19,64 0 0 0:2/0:2/0,45:0/45:0 TX-249 N (keep left)
+panel turn 25,64 0 0 - 5742 780 - Delta Blvd
 wait 1200
-say Delta Blvd (U-turn)
-panel turn 25,64 200 255 - Delta Blvd (U-turn)
+say Roundabout 3rd exit
+panel turn 21,64 250 255 - 5711 780 - Roundabout 3rd exit
 wait 1200
-panel turn 25,64 175 223 - Delta Blvd (U-turn)
+panel turn 21,64 218 222 - 5680 780 - Roundabout 3rd exit
 wait 1200
-panel turn 25,64 150 191 - Delta Blvd (U-turn)
+panel turn 21,64 187 190 - 5649 780 - Roundabout 3rd exit
 wait 1200
-panel turn 25,64 125 159 - Delta Blvd (U-turn)
+panel turn 21,64 156 159 - 5618 780 - Roundabout 3rd exit
 wait 1200
-panel turn 25,64 100 127 - Delta Blvd (U-turn)
+panel turn 21,64 125 127 - 5587 780 - Roundabout 3rd exit
 wait 1200
-panel turn 25,64 75 95 - Delta Blvd (U-turn)
+panel turn 21,64 93 94 - 5556 780 - Roundabout 3rd exit
 wait 1200
-panel turn 25,64 50 63 - Delta Blvd (U-turn)
+panel turn 21,64 62 63 - 5525 780 - Roundabout 3rd exit
 wait 1200
-panel turn 25,64 25 31 - Delta Blvd (U-turn)
+panel turn 21,64 31 31 - 5494 780 - Roundabout 3rd exit
 wait 1200
-panel turn 25,64 0 0 - Delta Blvd (U-turn)
+panel turn 21,64 0 0 - 5463 780 - Roundabout 3rd exit
 wait 1200
-say Roundabout, 3rd exit
-panel turn 21,64 250 255 - Roundabout, 3rd exit
+say Costco
+panel turn 3,0 150 255 - 5445 780 - Costco
 wait 1200
-panel turn 21,64 218 222 - Roundabout, 3rd exit
+panel turn 3,0 131 222 - 5427 780 - Costco
 wait 1200
-panel turn 21,64 187 190 - Roundabout, 3rd exit
+panel turn 3,0 112 190 - 5409 780 - Costco
 wait 1200
-panel turn 21,64 156 159 - Roundabout, 3rd exit
+panel turn 3,0 93 158 - 5391 780 - Costco
 wait 1200
-panel turn 21,64 125 127 - Roundabout, 3rd exit
+panel turn 3,0 75 127 - 5373 780 - Costco
 wait 1200
-panel turn 21,64 93 94 - Roundabout, 3rd exit
+panel turn 3,0 56 95 - 5355 780 - Costco
 wait 1200
-panel turn 21,64 62 63 - Roundabout, 3rd exit
+panel turn 3,0 37 62 - 5337 780 - Costco
 wait 1200
-panel turn 21,64 31 31 - Roundabout, 3rd exit
+panel turn 3,0 18 30 - 5319 780 - Costco
 wait 1200
-panel turn 21,64 0 0 - Roundabout, 3rd exit
+panel turn 3,0 0 0 - 5301 780 - Costco
 wait 1200
-say Costco (arrive)
-panel turn 3,0 150 255 - Costco (arrive)
-wait 1200
-panel turn 3,0 131 222 - Costco (arrive)
-wait 1200
-panel turn 3,0 112 190 - Costco (arrive)
-wait 1200
-panel turn 3,0 93 158 - Costco (arrive)
-wait 1200
-panel turn 3,0 75 127 - Costco (arrive)
-wait 1200
-panel turn 3,0 56 95 - Costco (arrive)
-wait 1200
-panel turn 3,0 37 62 - Costco (arrive)
-wait 1200
-panel turn 3,0 18 30 - Costco (arrive)
-wait 1200
-panel turn 3,0 0 0 - Costco (arrive)
-wait 1200
-say large/small: switch the view now; the panel changes layout (compact above the speedometer / tall in the banner spot)
-panel turn 13,64,-1,0,-64 120 117 -90:2/0:0/0:0/90:0 Alpha St
-wait 10000
+say switch large/small now: the layout changes (two banners / one full panel)
+panel turn 15,192,-1 600 90 0:0/0:0/45:2 4800 420 245 Spring Cypress Rd
+wait 12000
 panel off
 say demo end, repeating in 4 s
 wait 4000

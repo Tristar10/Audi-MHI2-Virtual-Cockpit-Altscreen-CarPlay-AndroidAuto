@@ -115,6 +115,62 @@ public final class PanelArt {
         }
     }
 
+    // ---- v23 layouts -------------------------------------------------------------------
+    /** Large view, left banner: picture square on the left, text area right, lanes under, bar at the edge. */
+    public void banner(int main, int dir, int[] arms, int bar, int[][] laneAngles, int[] laneStatus) {
+        java.util.Arrays.fill(px, 0);
+        roundRect(0, 0, w, h, 14, BG);
+        boolean lanes = laneAngles != null && laneAngles.length > 0;
+        int s = lanes ? h - 62 : h - 14;
+        maneuver(main, dir, arms, 6, 7, s);
+        if (lanes) {
+            lanes(laneAngles, laneStatus, 12, h - 54, w - 36, 48);
+        }
+        if (bar >= 0) {
+            int bh = h - 20;
+            int filled = (int) ((long) bh * Math.min(255, bar) / 255);
+            roundRect(w - 13, 10, 6, bh, 3, BAR_OFF);
+            if (filled > 0) {
+                roundRect(w - 13, 10 + bh - filled, 6, filled, 3, BAR_ON);
+            }
+        }
+    }
+
+    /** Large view, right banner: destination flag on the left (texts are HMI nodes). */
+    public void destination() {
+        java.util.Arrays.fill(px, 0);
+        roundRect(0, 0, w, h, 14, BG);
+        flag(h * 0.5f, h * 0.5f, h * 0.9f);
+    }
+
+    /**
+     * Small view, the full panel: picture, side bar, lanes, then three text rows drawn by HMI
+     * nodes (distance, exit/street, destination) with a separator and a small flag on the last row.
+     */
+    public void full(int main, int dir, int[] arms, int bar, int[][] laneAngles, int[] laneStatus) {
+        java.util.Arrays.fill(px, 0);
+        roundRect(0, 0, w, h, 18, BG);
+        boolean lanes = laneAngles != null && laneAngles.length > 0;
+        int as = Math.min(w - 40, h - 174 - (lanes ? 58 : 0));
+        int ax = (w - as) / 2 + 10;
+        int ay = 12;
+        maneuver(main, dir, arms, ax, ay, as);
+        if (lanes) {
+            lanes(laneAngles, laneStatus, 30, ay + as + 2, w - 44, 56);
+        }
+        if (bar >= 0) {
+            int by = ay + 8;
+            int bh = as - 16;
+            int filled = (int) ((long) bh * Math.min(255, bar) / 255);
+            roundRect(14, by, 9, bh, 4, BAR_OFF);
+            if (filled > 0) {
+                roundRect(14, by + bh - filled, 9, filled, 4, BAR_ON);
+            }
+        }
+        thick(16f, h - 56f, w - 16f, h - 56f, 1.5f, 0x60FFFFFF);
+        flag(32f, h - 28f, 38f);
+    }
+
     /** Maneuver picture inside the square (x, y, s). */
     public void maneuver(int main, int dir, int[] arms, int x, int y, int s) {
         float cx = x + s / 2f;

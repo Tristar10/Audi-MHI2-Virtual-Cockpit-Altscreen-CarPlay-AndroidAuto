@@ -41,7 +41,9 @@ import de.esolutions.hmi.widgets.audi.base.eal.TextureDescription;
  *
  * v21 turn panel (PanelArt picture + HMI-font text), drawn at the stock banner spot
  * (layout constants: small view 991,152, large view 1105,110) unless "panel at" moved it:
- *   panel turn MAIN,DIR[,-1,ARM...] METRES BAR LANES STREET...
+ *   panel turn MAIN,DIR[,-1,ARM...] METRES BAR LANES DEST ETA EXIT STREET...  (v23)
+ *       DEST metres to the destination (-1 none); ETA UTC epoch seconds, or seconds from now
+ *       when small (playback), -1 none; EXIT exit number or -
  *       BAR -1: no bar; LANES - for none, else lanes separated by '/', each
  *       ANGLE[,ANGLE...]:STATUS (degrees, positive right; status 0/1/2), e.g. -90:2/0:0/0:0/90:0
  *   panel at X Y | panel at auto | panel off
@@ -52,6 +54,11 @@ import de.esolutions.hmi.widgets.audi.base.eal.TextureDescription;
  * banner spot. Large view: compact 260x140 panel above the speedometer. Small view: the stock banner
  * is switched on (TtRgi) and the tall panel drawn at its spot. Position and scale per view are read
  * from /tmp/tt-panel-pos (lines: large X Y SCALE / small X Y SCALE), so they can be tuned live.
+ *
+ * v23 (user's layout): large view = two banners like stock nav, LEFT (maneuver: picture, distance,
+ * exit number or street, lanes, bar) and RIGHT (destination flag, distance, arrival time); the maps
+ * already label roads. Small view = one FULL panel on the right with everything. pos-file keys:
+ * left / right / small.
  * Results go to /tmp/tt-rgd.log ("panel ..."). Java 1.4 library only.
  */
 public final class TtPanel {
@@ -222,21 +229,14 @@ public final class TtPanel {
                 posX = num(w[1]);
                 posY = num(w[2]);
             }
-            if (turnRoot != null) {
-                place(ZoomGate.small());
+            if (mainRoot != null) {
+                place(mainRoot, ZoomGate.small() ? "small" : "left");
             }
             m.fireRenderEvent();
             return "moved";
         }
-        if (op.equals("turn") && w.length >= 5) {
-            StringBuffer street = new StringBuffer();
-            for (int i = 5; i < w.length; i++) {
-                if (i > 5) {
-                    street.append(' ');
-                }
-                street.append(w[i]);
-            }
-            return turn(m, ints(w[1]), num(w[2]), num(w[3]), w[4], street.toString(), id >= 0);
+        if (op.equals("turn") && w.length >= 8) {
+            return turnCmd(m, w, id >= 0);
         }
         if (op.equals("off")) {
             clearTurn(m);
@@ -372,32 +372,42 @@ public final class TtPanel {
         return b.toString();
     }
 
-    // ---- turn panel (v21 picture, v22 layouts) --------------------------------------
-    /** Tall panel for the small view (stock banner spot). */
-    private static final int TALL_W = 300;
-    private static final int TALL_H = 340;
-    /** Compact panel for the large view (above the speedometer). */
-    private static final int WIDE_W = 260;
-    private static final int WIDE_H = 140;
+    // ---- turn panels (v23 layouts) ---------------------------------------------------
+    // Large view (map tab): LEFT banner = maneuver (picture, distance, exit or street, lanes, bar),
+    // RIGHT banner = destination (flag, distance, arrival time), like stock nav's two boxes.
+    // Small view (tach in the centre): one FULL panel on the right with everything.
+    private static final int LEFT_W = 270;
+    private static final int LEFT_H = 118;
+    private static final int LEFT_H_LANES = 168;
+    private static final int RIGHT_W = 210;
+    private static final int RIGHT_H = 78;
+    private static final int FULL_W = 300;
+    private static final int FULL_H = 380;
     private static final java.io.File LIVE_OFF = new java.io.File("/tmp/tt-panel-off");
     private static final java.io.File POS = new java.io.File("/tmp/tt-panel-pos");
     private static int posX = Integer.MIN_VALUE;
     private static int posY;
-    private static IWrappedNode3D turnRoot;
-    private static IWrappedNode3DImage turnImage;
-    private static IWrappedNode3DText distText;
-    private static IWrappedNode3DText streetText;
+    private static IWrappedNode3D mainRoot;
+    private static IWrappedNode3DImage mainImage;
+    private static IWrappedNode3DText text1;
+    private static IWrappedNode3DText text2;
+    private static IWrappedNode3DText text3;
+    private static IWrappedNode3D destRoot;
+    private static IWrappedNode3DImage destImage;
+    private static IWrappedNode3DText dest1;
+    private static IWrappedNode3DText dest2;
     private static String artKey;
     private static String liveKey;
     private static String lastTurn;
     private static boolean liveShown;
-    private static boolean shownSmall;
+    private static int shownMode = -1;
 
     /**
      * The iPhone feed: called by RgdBus after every update (any thread). Queues a redraw only
      * when what is shown changes; the bar is quantised to 16 steps to limit picture redraws.
      */
-    public static void live(boolean on, short[] icon, int metres, int bar, String lanes, String street) {
+    public static void live(boolean on, short[] icon, int metres, int bar, String lanes, int destM, long etaUtc,
+                            String exit, String street) {
         try {
             if (!on || icon == null || icon.length < 2 || LIVE_OFF.exists()) {
                 if (liveShown) {
@@ -407,18 +417,14 @@ public final class TtPanel {
                 }
                 return;
             }
-            StringBuffer a = new StringBuffer("turn ");
+            int[] ic = new int[icon.length];
             for (int i = 0; i < icon.length; i++) {
-                if (i > 0) {
-                    a.append(',');
-                }
-                a.append(icon[i]);
+                ic[i] = icon[i];
             }
             int q = bar < 0 ? -1 : (bar / 16) * 16;
-            a.append(' ').append(metres).append(' ').append(q).append(' ')
-                .append(lanes == null || lanes.length() == 0 ? "-" : lanes).append(' ')
-                .append(street == null ? "" : street);
-            String k = a.toString();
+            // Destination distance in 0.1 mi steps, so it does not redraw every metre.
+            int dq = destM < 0 ? -1 : (int) ((destM / 160) * 160);
+            String k = rebuildArg(ic, metres, q, lanes, dq, etaUtc, exit, street);
             if (!k.equals(liveKey)) {
                 liveKey = k;
                 liveShown = true;
@@ -428,7 +434,7 @@ public final class TtPanel {
         }
     }
 
-    /** ZoomGate: large/small view changed; rebuild the panel in the other layout. */
+    /** ZoomGate: large/small view changed; rebuild in the other layout. */
     public static void viewChanged() {
         String t = lastTurn;
         if (t != null) {
@@ -448,19 +454,57 @@ public final class TtPanel {
         }
     }
 
-    private static String turn(EALManager m, int[] icon, int metres, int bar, String lanes, String street,
-                               boolean verbose) {
+    private static String rebuildArg(int[] icon, int metres, int bar, String lanes, int destM, long eta,
+                                     String exit, String street) {
+        StringBuffer a = new StringBuffer("turn ");
+        for (int i = 0; i < icon.length; i++) {
+            if (i > 0) {
+                a.append(',');
+            }
+            a.append(icon[i]);
+        }
+        return a.append(' ').append(metres).append(' ').append(bar).append(' ')
+            .append(lanes == null || lanes.length() == 0 ? "-" : lanes).append(' ')
+            .append(destM).append(' ').append(eta).append(' ')
+            .append(exit == null || exit.length() == 0 ? "-" : exit).append(' ')
+            .append(street == null ? "" : street).toString();
+    }
+
+    /** Playback/live "turn ICON METRES BAR LANES DEST ETA EXIT STREET...". */
+    private static String turnCmd(EALManager m, String[] w, boolean verbose) {
+        StringBuffer street = new StringBuffer();
+        for (int i = 8; i < w.length; i++) {
+            if (i > 8) {
+                street.append(' ');
+            }
+            street.append(w[i]);
+        }
+        long eta = -1L;
+        try {
+            eta = Long.parseLong(w[6]);
+        } catch (Throwable ignored) {
+            eta = -1L;
+        }
+        if (eta > 0L && eta < 100000000L) {
+            // Playback: seconds from now.
+            eta = System.currentTimeMillis() / 1000L + eta;
+        }
+        String exit = w[7].equals("-") ? "" : w[7];
+        return turn(m, ints(w[1]), num(w[2]), num(w[3]), w[4], num(w[5]), eta, exit, street.toString(), verbose);
+    }
+
+    private static String turn(EALManager m, int[] icon, int metres, int bar, String lanes, int destM, long eta,
+                               String exit, String street, boolean verbose) {
         if (icon.length < 2) {
             return "turn needs MAIN,DIR";
         }
-        lastTurn = rebuildArg(icon, metres, bar, lanes, street);
+        lastTurn = rebuildArg(icon, metres, bar, lanes, destM, eta, exit, street);
         boolean small = ZoomGate.small();
-        if (turnRoot != null && small != shownSmall) {
+        int mode = small ? 1 : 0;
+        if (mode != shownMode) {
             clearTurn(m);
+            shownMode = mode;
         }
-        shownSmall = small;
-        int pw = small ? TALL_W : WIDE_W;
-        int ph = small ? TALL_H : WIDE_H;
         int main = icon[0];
         int dir = icon[1] & 0xff;
         int[] arms = null;
@@ -482,89 +526,154 @@ public final class TtPanel {
                 laneStatus[i] = c < 0 ? 0 : num(ls[i].substring(c + 1));
             }
         }
+        boolean hasLanes = laneAngles != null;
+        int pw = small ? FULL_W : LEFT_W;
+        int ph = small ? FULL_H : (hasLanes ? LEFT_H_LANES : LEFT_H);
         StringBuffer b = new StringBuffer(small ? "small " : "large ");
-        if (turnRoot == null) {
-            turnRoot = m.createNode3D(m.getPartialPopupsFrontNode(), "ttTurnPanel", (float) pw, (float) ph);
-            if (turnRoot == null) {
+        IWrappedNode3D front = m.getPartialPopupsFrontNode();
+        if (mainRoot == null) {
+            mainRoot = m.createNode3D(front, "ttTurnPanel", (float) pw, (float) ph);
+            if (mainRoot == null) {
                 return "createNode3D null";
             }
         }
-        place(small);
-        String k = new StringBuffer().append(small).append(',').append(main).append(',').append(dir).append(',')
+        place(mainRoot, small ? "small" : "left");
+        String k = new StringBuffer().append(mode).append(',').append(main).append(',').append(dir).append(',')
             .append(bar).append(',').append(lanes == null ? "-" : lanes).append(keyOf(arms)).toString();
-        if (!k.equals(artKey) || turnImage == null) {
+        if (!k.equals(artKey) || mainImage == null) {
             long t0 = System.currentTimeMillis();
             PanelArt art = new PanelArt(pw, ph);
             if (small) {
-                art.panel(main, dir, arms, bar, laneAngles, laneStatus);
+                art.full(main, dir, arms, bar, laneAngles, laneStatus);
             } else {
-                art.compact(main, dir, arms, bar, laneAngles, laneStatus);
+                art.banner(main, dir, arms, bar, laneAngles, laneStatus);
             }
-            byte[] rgba = art.rgba();
-            ByteBuffer buf = ByteBuffer.allocateDirect(rgba.length);
-            buf.put(rgba);
-            buf.rewind();
-            TextureDescription d = m.createTextureDescription(buf, 6, pw, ph, null, new Object());
-            IWrappedNode3DImage img = m.createImage3D(turnRoot, "ttTurnArt", d, 0, true, "ttPanel");
+            IWrappedNode3DImage img = image(m, mainRoot, art);
             if (img == null) {
                 return "image null";
             }
-            img.setScale((float) pw / img.getUnscaledWidth(), (float) ph / img.getUnscaledHeight(), 1f);
-            img.setPosition(0f, 0f, 0f);
-            if (turnImage != null) {
+            if (mainImage != null) {
                 try {
-                    turnRoot.remove(turnImage);
-                    m.destroy(turnImage);
+                    mainRoot.remove(mainImage);
+                    m.destroy(mainImage);
                 } catch (Throwable ignored) {
                 }
             }
-            turnImage = img;
+            mainImage = img;
             artKey = k;
-            // Keep the texts above the picture: re-add them after it.
-            if (distText != null) {
-                turnRoot.remove(distText);
-                turnRoot.add(distText);
-            }
-            if (streetText != null) {
-                turnRoot.remove(streetText);
-                turnRoot.add(streetText);
-            }
+            raise(mainRoot, text1);
+            raise(mainRoot, text2);
+            raise(mainRoot, text3);
             if (verbose) {
                 b.append("art ").append(System.currentTimeMillis() - t0).append(" ms ");
             }
         }
-        boolean hasLanes = laneAngles != null;
+        String sub = exit.length() > 0 ? new StringBuffer("Exit ").append(exit).toString() : street;
+        String destLine = destText(m, destM, eta);
         if (small) {
-            distText = setText(m, distText, "ttTurnDist", distance(metres), 2, 44, 40f, (float) (ph - 100), pw - 50);
-            streetText = setText(m, streetText, "ttTurnStreet", street, 1, 26, 40f, (float) (ph - 48), pw - 50);
+            if (exit.length() > 0 && street.length() > 0) {
+                sub = new StringBuffer("Exit ").append(exit).append("  ").append(street).toString();
+            }
+            text1 = setText(m, mainRoot, text1, "ttTurnDist", distance(metres), 2, 40, 40f, (float) (ph - 158), pw - 56);
+            text2 = setText(m, mainRoot, text2, "ttTurnSub", sub, 1, 24, 40f, (float) (ph - 106), pw - 56);
+            text3 = setText(m, mainRoot, text3, "ttTurnDest", destLine, 1, 22, 60f, (float) (ph - 44), pw - 76);
         } else {
-            int tx = ph - 16 + 12;
+            int s = hasLanes ? ph - 62 : ph - 14;
+            int tx = s + 14;
             int tw = pw - tx - 20;
-            distText = setText(m, distText, "ttTurnDist", distance(metres), 2, 36, (float) tx,
-                hasLanes ? 8f : 20f, tw);
-            streetText = setText(m, streetText, "ttTurnStreet", street, 1, 20, (float) tx,
-                hasLanes ? 52f : 72f, tw);
+            text1 = setText(m, mainRoot, text1, "ttTurnDist", distance(metres), 2, 34, (float) tx, 10f, tw);
+            text2 = setText(m, mainRoot, text2, "ttTurnSub", sub, 1, 21, (float) tx, 56f, tw);
+            // Right banner: destination.
+            if (destLine.length() > 0) {
+                if (destRoot == null) {
+                    destRoot = m.createNode3D(front, "ttDestPanel", (float) RIGHT_W, (float) RIGHT_H);
+                    PanelArt da = new PanelArt(RIGHT_W, RIGHT_H);
+                    da.destination();
+                    destImage = destRoot == null ? null : image(m, destRoot, da);
+                }
+                if (destRoot != null) {
+                    place(destRoot, "right");
+                    dest1 = setText(m, destRoot, dest1, "ttDestDist", distance(destM), 2, 28, 76f, 6f, RIGHT_W - 90);
+                    dest2 = setText(m, destRoot, dest2, "ttDestEta", clock(m, eta), 1, 22, 76f, 42f, RIGHT_W - 90);
+                    destRoot.setVisible(true);
+                }
+            } else if (destRoot != null) {
+                destRoot.setVisible(false);
+            }
         }
-        turnRoot.setVisible(true);
+        mainRoot.setVisible(true);
         m.fireRenderEvent();
         if (verbose) {
-            b.append("at ").append((int) turnRoot.getX()).append(',').append((int) turnRoot.getY())
-                .append(" dist ").append(dump(distText)).append(" street ").append(dump(streetText));
+            b.append("at ").append((int) mainRoot.getX()).append(',').append((int) mainRoot.getY())
+                .append(" t1 ").append(dump(text1));
         }
         return b.toString();
     }
 
-    private static String rebuildArg(int[] icon, int metres, int bar, String lanes, String street) {
-        StringBuffer a = new StringBuffer("turn ");
-        for (int i = 0; i < icon.length; i++) {
-            if (i > 0) {
-                a.append(',');
-            }
-            a.append(icon[i]);
+    private static IWrappedNode3DImage image(EALManager m, IWrappedNode3D parent, PanelArt art) {
+        byte[] rgba = art.rgba();
+        ByteBuffer buf = ByteBuffer.allocateDirect(rgba.length);
+        buf.put(rgba);
+        buf.rewind();
+        TextureDescription d = m.createTextureDescription(buf, 6, art.width(), art.height(), null, new Object());
+        IWrappedNode3DImage img = m.createImage3D(parent, "ttArt", d, 0, true, "ttPanel");
+        if (img != null) {
+            img.setScale((float) art.width() / img.getUnscaledWidth(), (float) art.height() / img.getUnscaledHeight(), 1f);
+            img.setPosition(0f, 0f, 0f);
         }
-        return a.append(' ').append(metres).append(' ').append(bar).append(' ')
-            .append(lanes == null || lanes.length() == 0 ? "-" : lanes).append(' ')
-            .append(street == null ? "" : street).toString();
+        return img;
+    }
+
+    /** Re-adds a text node so it is drawn after (above) a newly created picture. */
+    private static void raise(IWrappedNode3D root, IWrappedNode3D n) {
+        if (root != null && n != null) {
+            try {
+                root.remove(n);
+                root.add(n);
+            } catch (Throwable ignored) {
+            }
+        }
+    }
+
+    /** "3.0 mi  3:43 PM", or "" when neither is known. */
+    private static String destText(EALManager m, int destM, long eta) {
+        StringBuffer b = new StringBuffer();
+        if (destM >= 0) {
+            b.append(distance(destM));
+        }
+        String c = clock(m, eta);
+        if (c.length() > 0) {
+            if (b.length() > 0) {
+                b.append("   ");
+            }
+            b.append(c);
+        }
+        return b.toString();
+    }
+
+    /** Local clock time (12 h) of a UTC epoch-seconds value, e.g. "3:43 PM". */
+    private static String clock(EALManager m, long etaUtc) {
+        if (etaUtc <= 0L) {
+            return "";
+        }
+        long ms = etaUtc * 1000L;
+        try {
+            ms = m.getTerminal().getFramework().convertUTCTimeToLocalTime(ms);
+        } catch (Throwable ignored) {
+            // keep UTC
+        }
+        int mins = (int) ((ms / 60000L) % 1440L);
+        if (mins < 0) {
+            mins += 1440;
+        }
+        int hh = mins / 60;
+        int mm = mins % 60;
+        StringBuffer b = new StringBuffer();
+        b.append(hh % 12 == 0 ? 12 : hh % 12).append(':');
+        if (mm < 10) {
+            b.append('0');
+        }
+        return b.append(mm).append(hh < 12 ? " AM" : " PM").toString();
     }
 
     private static String keyOf(int[] a) {
@@ -575,8 +684,8 @@ public final class TtPanel {
         return b.toString();
     }
 
-    private static IWrappedNode3DText setText(EALManager m, IWrappedNode3DText n, String name, String t,
-                                              int style, int size, float x, float y, int maxWidth) {
+    private static IWrappedNode3DText setText(EALManager m, IWrappedNode3D root, IWrappedNode3DText n, String name,
+                                              String t, int style, int size, float x, float y, int maxWidth) {
         Object font = HMITerminalImpl.fontLoader == null ? null : HMITerminalImpl.fontLoader.getFont(style, size);
         if (!(font instanceof de.esolutions.hmi.widgets.audi.base.eal.IWrappedFont)) {
             return n;
@@ -584,7 +693,7 @@ public final class TtPanel {
         de.esolutions.hmi.widgets.audi.base.eal.IWrappedFont f = (de.esolutions.hmi.widgets.audi.base.eal.IWrappedFont) font;
         String text = fit(m, t == null || t.length() == 0 ? " " : t, f, maxWidth);
         if (n == null) {
-            n = m.createText3D(turnRoot, name, text, f);
+            n = m.createText3D(root, name, text, f);
             if (n == null) {
                 return null;
             }
@@ -617,15 +726,25 @@ public final class TtPanel {
     }
 
     /**
-     * Position and scale: "panel at" overrides; else /tmp/tt-panel-pos ("large X Y SCALE" /
-     * "small X Y SCALE"); else defaults: small view at the stock banner spot 991,152, large view
-     * 1150,96 (above the speedometer).
+     * Position and scale of one panel: "panel at" overrides the main panel; else /tmp/tt-panel-pos
+     * lines "left X Y SCALE" / "right X Y SCALE" / "small X Y SCALE"; else the defaults
+     * (left 30,64 top-left of the map; right 1180,70 above the speedometer; small 991,152 banner spot).
      */
-    private static void place(boolean small) {
-        int x = small ? 991 : 1150;
-        int y = small ? 152 : 96;
+    private static void place(IWrappedNode3D n, String which) {
+        int x;
+        int y;
+        if (which.equals("small")) {
+            x = 991;
+            y = 152;
+        } else if (which.equals("right")) {
+            x = 1180;
+            y = 70;
+        } else {
+            x = 30;
+            y = 64;
+        }
         float scale = 1f;
-        String[] v = posLine(small ? "small" : "large");
+        String[] v = posLine(which);
         if (v != null) {
             x = num(v[1]);
             y = num(v[2]);
@@ -637,15 +756,15 @@ public final class TtPanel {
                 }
             }
         }
-        if (posX != Integer.MIN_VALUE) {
+        if (posX != Integer.MIN_VALUE && !which.equals("right")) {
             x = posX;
             y = posY;
         }
         if (scale < 0.3f || scale > 2f) {
             scale = 1f;
         }
-        turnRoot.setScale(scale, scale, 1f);
-        turnRoot.setPosition((float) x, (float) y, 0f);
+        n.setScale(scale, scale, 1f);
+        n.setPosition((float) x, (float) y, 0f);
     }
 
     private static String[] posLine(String which) {
@@ -697,20 +816,28 @@ public final class TtPanel {
     }
 
     private static void clearTurn(EALManager m) {
-        if (turnRoot != null) {
-            try {
-                IWrappedNode3D p = turnRoot.getParent();
-                if (p != null) {
-                    p.remove(turnRoot);
+        IWrappedNode3D[] roots = { mainRoot, destRoot };
+        for (int i = 0; i < roots.length; i++) {
+            if (roots[i] != null) {
+                try {
+                    IWrappedNode3D p = roots[i].getParent();
+                    if (p != null) {
+                        p.remove(roots[i]);
+                    }
+                    m.destroy(roots[i]);
+                } catch (Throwable ignored) {
                 }
-                m.destroy(turnRoot);
-            } catch (Throwable ignored) {
             }
         }
-        turnRoot = null;
-        turnImage = null;
-        distText = null;
-        streetText = null;
+        mainRoot = null;
+        mainImage = null;
+        text1 = null;
+        text2 = null;
+        text3 = null;
+        destRoot = null;
+        destImage = null;
+        dest1 = null;
+        dest2 = null;
         artKey = null;
     }
 
