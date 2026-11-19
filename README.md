@@ -1,5 +1,8 @@
 # CarPlay on the Audi TT 8S Virtual Cockpit
 
+> **This repository has moved to [github.com/Tristar10/audi-tt-8s-altscreen](https://github.com/Tristar10/audi-tt-8s-altscreen).**
+> This copy is archived and no longer updated.
+
 Apple Maps and Google Maps from CarPlay on the Audi TT 8S Virtual Cockpit, with
 turn-by-turn guidance drawn in the cockpit's guidance banner.
 
